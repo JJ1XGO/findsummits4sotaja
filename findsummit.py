@@ -1,5 +1,7 @@
 import sys
 import datetime
+import pathlib
+import glob
 import re
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,10 +12,17 @@ import traceback
 # for debug
 from pprint import pprint
 
+# １次メッシュ対象範囲の縦横数
+mesh_ns=0   #縦の数
+mesh_ew=0   #横の数
+
+zipFile = "FG-GML-%d-*.zip"
+#xmlFile = "FG-GML-%d-*.xml"
+
 mesh_width = 1125
 mesh_height = 750
-xmlFile = "FG-GML-{}-*.xml"
 
+# 1次メッシュ対象範囲の特定/生成
 def scope_mesh_generate(start_mesh, end_mesh):
     start_mesh12 = int(start_mesh/100)  #南北方向の開始No(1-2桁目)
     start_mesh34 = int(start_mesh%100)  #東西方向の開始No(3-4桁目)
@@ -33,15 +42,46 @@ def scope_mesh_generate(start_mesh, end_mesh):
     #pprint(mesh34)
 
     #対象範囲を生成
-    scope_mesh=[]
-    for i in range(len(mesh12)):
-        for j in range(len(mesh34)):
-            scope_mesh.append(mesh12[i]*100+mesh34[j])
-    return scope_mesh
+    mesh_ns=len(mesh12) #南北方向の配列数
+    mesh_ew=len(mesh34) #東西方向の配列数
+    scope_mesh=np.arange(mesh_ns*mesh_ew)
+    for i in range(mesh_ns):
+        for j in range(mesh_ew):
+            scope_mesh[i*mesh_ew+j]=mesh12[i]*100+mesh34[j]
+    results=np.reshape(scope_mesh,(mesh_ns,mesh_ew))
+    return results,mesh_ns,mesh_ew
 
+#-----------Main---------------------------------
+def get_xml_from_zip(zip_file):
+    """zipからファイル名を指定して読み込む"""
+    file_datas = OrderedDict()
+
+    try:
+        with zipfile.ZipFile(zip_file, 'r') as zip_data:
+            # ファイルリスト取得
+            infos = zip_data.infolist()
+
+#            pprint(infos)
+
+            for info in infos:
+                # ファイルパスでスキップ判定
+#                if re_match(info.filename) is None:
+#                    print("No match",info.filename)
+#                    continue
+
+                # zipからファイルデータを読み込む
+                file_data = zip_data.read(info.filename)
+
+                # ファイルパスをキーにして辞書に入れる
+                file_datas[info.filename] = file_data
+
+    except zipfile.BadZipFile:
+        print(traceback.format_exc())
+
+    return file_datas
 #-------------Main---------------------------------
 def main():
-    print(sys.argv[0]+":Started @",datetime.datetime.now())
+    print(sys.argv[0]+": Started @",datetime.datetime.now())
 
 #    print("debug:sys.argv="+str(sys.argv))
 #    print("debug:len(sys.argv)="+str(len(sys.argv)))
@@ -56,15 +96,31 @@ def main():
         print("mesh_no is PrimaryMeshNo(9999)")
         sys.exit(1)
 
-# 対象1次メッシュ範囲の特定
+# 1次メッシュ対象範囲の特定
     start_mesh = int(sys.argv[1])
     end_mesh = int(sys.argv[2])
 
-    scope_mesh=scope_mesh_generate(start_mesh, end_mesh)
+    scope_mesh,mesh_ns,mesh_ew=scope_mesh_generate(start_mesh, end_mesh)
     print("Scope Primary Mesh No")
     pprint(scope_mesh)
+    print("EW*NS=%d*%d" %(mesh_ew,mesh_ns))
 
-    print(sys.argv[0]+":Finished @",datetime.datetime.now())
+# zipファイル読み込み
+    zipdir=pathlib.Path("data")
+    for i in range(mesh_ns):
+        for j in range(mesh_ew):
+            srczip="FG-GML-%d-*.zip" %(scope_mesh[i][j])
+#            print("FG-GML-%d-*.xml" %(scope_mesh[i][j]))
+            for zf in zipdir.glob(srczip):  # 取得出来たzipファイルは２次メッシュレベル
+                print(zf)
+#                xmls=get_xml_from_zip(zf,srcxml)   # zipの中からxmlの内容を読み込む
+                xmls=get_xml_from_zip(zf)   # zipの中からxmlの内容を読み込む
+                for (file, data) in xmls.items():   # 取得できたxmlファイルは3次メッシュレベル
+                    # ファイル名
+                    print('xml file: %s' % file)
+
+
+    print(sys.argv[0]+": Finished @",datetime.datetime.now())
 
 '''
 with open(sys.argv[1], "r") as f:
