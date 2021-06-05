@@ -103,7 +103,9 @@ def main():
     scope_mesh,mesh_ns,mesh_ew=scope_mesh_generate(start_mesh, end_mesh)
     print("Scope Primary Mesh No")
     pprint(scope_mesh)
-    print("EW*NS=%d*%d" %(mesh_ew,mesh_ns))
+    print("1st mesh -> EW*NS=%d*%d=%d" %(mesh_ew,mesh_ns,mesh_ew*mesh_ns))
+    print("2nd mesh -> EW*NS=%d*%d=%d" %(mesh_ew*8,mesh_ns*8,mesh_ew*mesh_ns*64))
+    print("3nd mesh -> EW*NS=%d*%d=%d" %(mesh_ew*80,mesh_ns*80,mesh_ew*mesh_ns*6400))
 
 # zipファイル読み込み
     zipdir=pathlib.Path("data")
