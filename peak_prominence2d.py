@@ -568,5 +568,5 @@ if __name__=='__main__':
 #    plt.show(block=False)
     plt.show()
 
-    from pprint import pprint
-    pprint(peaks)
+#    from pprint import pprint
+#    pprint(peaks)
