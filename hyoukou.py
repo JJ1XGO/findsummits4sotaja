@@ -55,9 +55,13 @@ print(lendata)
 
 for i in range(xlen*ylen):
     if i < start_pos or i > lendata+start_pos-1:
-        data2[i] = -9999.               # 先頭から始まってなければ-9999を入れる
+#        data2[i] = -9999.                  # 先頭から始まってなければ-9999を入れる
+        data2[i] = 0                        # 先頭から始まってなければ 0 を入れる
     else:
-        data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
+        if data[i-start_pos] < 0:
+            data2[i] = 0                    # マイナス値なら 0 を入れる
+        else:
+            data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
 
 data = data2.reshape(ylen, xlen)    # 2次元配列に変換。xlen列分、ylen行作る
 

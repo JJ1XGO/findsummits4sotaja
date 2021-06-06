@@ -175,11 +175,14 @@ start_pos = starty*xlen + startx    # startPoint(0 1)の場合、1x150+0=150
 lendata=len(data)   # データ数を確認
 
 for i in range(xlen*ylen):
-    if i < start_pos or i > lendata+start_pos-1:    # 最後までデータが埋まっていないケースがあるので修正
-#    if i < start_pos:
-        data2[i] = -9999.               # 先頭から始まってなければ-9999を入れる
+    if i < start_pos or i > lendata+start_pos-1:
+#        data2[i] = -9999.                  # 先頭から始まってなければ-9999を入れる
+        data2[i] = 0                        # 先頭から始まってなければ 0 を入れる
     else:
-        data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
+        if data[i-start_pos] < 0:
+            data2[i] = 0                    # マイナス値なら 0 を入れる
+        else:
+            data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
 
 data = data2.reshape(ylen, xlen)    # 2次元配列に変換。xlen列分、ylen行作る
 
