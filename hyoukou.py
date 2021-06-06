@@ -50,8 +50,11 @@ with open(sys.argv[1], "r") as f:
 data2 = np.empty(xlen*ylen) # 配列生成
 start_pos = starty*xlen + startx    # startPoint(0 1)の場合、1x150+0=150
 
+lendata=len(data)
+print(lendata)
+
 for i in range(xlen*ylen):
-    if i < start_pos:
+    if i < start_pos or i > lendata+start_pos-1:
         data2[i] = -9999.               # 先頭から始まってなければ-9999を入れる
     else:
         data2[i] = data[i-start_pos]    # startPointに達したら値を入れる

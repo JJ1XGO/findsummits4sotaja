@@ -52,7 +52,7 @@ def scope_mesh_generate(start_mesh, end_mesh):
     return results,mesh_ns,mesh_ew
 
 #-----------Main---------------------------------
-def get_xml_from_zip(zip_file):
+def get_xml_from_zip(zip_file, re_match):
     """zipからファイル名を指定して読み込む"""
     file_datas = OrderedDict()
 
@@ -65,9 +65,9 @@ def get_xml_from_zip(zip_file):
 
             for info in infos:
                 # ファイルパスでスキップ判定
-#                if re_match(info.filename) is None:
-#                    print("No match",info.filename)
-#                    continue
+                if re_match(info.filename) is None:
+                    print("No match",info.filename)
+                    continue
 
                 # zipからファイルデータを読み込む
                 file_data = zip_data.read(info.filename)
@@ -112,11 +112,11 @@ def main():
     for i in range(mesh_ns):
         for j in range(mesh_ew):
             srczip="FG-GML-%d-*.zip" %(scope_mesh[i][j])
-#            print("FG-GML-%d-*.xml" %(scope_mesh[i][j]))
             for zf in zipdir.glob(srczip):  # 取得出来たzipファイルは２次メッシュレベル
                 print(zf)
-#                xmls=get_xml_from_zip(zf,srcxml)   # zipの中からxmlの内容を読み込む
-                xmls=get_xml_from_zip(zf)   # zipの中からxmlの内容を読み込む
+                st=str(zf)[5:20]+".+\.xml"
+                regexml=re.compile(st).match
+                xmls=get_xml_from_zip(zf,regexml)   # zipの中からxmlの内容を読み込む
                 for (file, data) in xmls.items():   # 取得できたxmlファイルは3次メッシュレベル
                     # ファイル名
                     print('xml file: %s' % file)
@@ -172,8 +172,11 @@ with open(sys.argv[1], "r") as f:
 data2 = np.empty(xlen*ylen) # 配列生成
 start_pos = starty*xlen + startx    # startPoint(0 1)の場合、1x150+0=150
 
+lendata=len(data)   # データ数を確認
+
 for i in range(xlen*ylen):
-    if i < start_pos:
+    if i < start_pos or i > lendata+start_pos-1:    # 最後までデータが埋まっていないケースがあるので修正
+#    if i < start_pos:
         data2[i] = -9999.               # 先頭から始まってなければ-9999を入れる
     else:
         data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
