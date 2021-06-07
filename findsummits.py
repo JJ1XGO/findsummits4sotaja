@@ -277,17 +277,17 @@ def main():
                     ,gsiIdxNS3,gsiIdxEW3
                     ]=data
 
-# gsigridmapはGSIと同じ形で南西から北東に向かって敷き詰められているので、
-# 今度はimggridmapに対して北西から南東に向かって上から敷き詰め直す
+# gsigridmapはGSIと同じ形で敷き詰められているので、
+# imggridmapに対して1枚のイメージに敷き詰め直す
     imglist=[]
-    for gsiIdxNS1 in range(mesh_ns-1, -1, -1):           # 一番北の方から取っていく:1次メッシュレベル
-        for gsiIdxNS2 in range(7, -1, -1):               # 一番北の方から取っていく:2次メッシュレベル
-            for gsiIdxNS3 in range(9, -1, -1):           # 一番北の方から取っていく:3次メッシュレベル
-                for gsiIdxNS4 in range(150):            # 一番北の方から取っていく:標高データレベル(標高データは北から入っているので注意)
-                    for gsiIdxEW1 in range(mesh_ew):    # 一番西の方から取っていく:1次メッシュレベル
-                        for gsiIdxEW2 in range(8):      # 一番西の方から取っていく:2次メッシュレベル
-                            for gsiIdxEW3 in range(10): # 一番西の方から取っていく:3次メッシュレベル
-#                                for gsiIdxEW4 in range(225): # 一番西の方から取っていく:標高データレベル
+    for gsiIdxNS1 in range(mesh_ns):                            # 一番南の方から取っていく:1次メッシュレベル
+        for gsiIdxNS2 in range(8):                              # 一番南の方から取っていく:2次メッシュレベル
+            for gsiIdxNS3 in range(10):                         # 一番南の方から取っていく:3次メッシュレベル
+                for gsiIdxNS4 in range(149,-1,-1):              # 一番南の方から取っていく:標高データレベル(標高データは北から入っているので注意)
+                    for gsiIdxEW1 in range(mesh_ew):            # 一番西の方から取っていく:1次メッシュレベル
+                        for gsiIdxEW2 in range(8):              # 一番西の方から取っていく:2次メッシュレベル
+                            for gsiIdxEW3 in range(10):         # 一番西の方から取っていく:3次メッシュレベル
+#                                for gsiIdxEW4 in range(225):   # 一番西の方から取っていく:標高データレベル
                                 imglist.extend(\
                                     gsigridmap[\
                                      gsiIdxNS1,gsiIdxEW1\
