@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import zipfile
 from collections import OrderedDict
 import traceback
+import gc
 # for debug
 from pprint import pprint
 
@@ -24,7 +25,7 @@ mesh_height = 750
 
 def argv_chk(argv):
     try:
-        pprint(argv)
+#        pprint(argv)
         if len(argv)<2 or len(argv)>3:
             raise Exception
         if argv[1].isdigit():
@@ -66,7 +67,7 @@ def scope_mesh_generate(start_mesh, end_mesh):
     #対象範囲を生成
     mesh_ns=len(mesh12) #南北方向の配列数
     mesh_ew=len(mesh34) #東西方向の配列数
-    scope_mesh=np.arange(mesh_ns*mesh_ew)
+    scope_mesh=np.empty(mesh_ns*mesh_ew)
     for i in range(mesh_ns):
         for j in range(mesh_ew):
             scope_mesh[i*mesh_ew+j]=mesh12[i]*100+mesh34[j]
@@ -106,7 +107,7 @@ def get_data_from_xml(file, data):
     fileNameMesh3=fileNamePurse[4]
 #    print("mesh1="+fileNameMesh1+" mesh2="+fileNameMesh2+" mesh3="+fileNameMesh3)
 
-    strdata=data.decode()   # dataはbytes型なのでstr型にdecode
+    strdata=data.decode("utf-8")   # dataはbytes型なのでstr型にdecode
 
     # mesh
     r = re.compile("<mesh>(.+)</mesh>") # <mesh>の正規表現オブジェクト生成
@@ -138,9 +139,9 @@ def get_data_from_xml(file, data):
         xlen = int(m.group(1)) + 1  # highのX値(5mメッシュだと224)+1
         ylen = int(m.group(2)) + 1  # highのY値(5mメッシュだと149) +1
 #    print("mesh xlen="+str(xlen)+" ylen="+str(ylen))
-    # 単位データ毎の緯度/経度を後で付加するため、単位データ当たりの緯度/経度を求めておく
-    xUnitData=(xupperCorner-xlowerCorner)/xlen
-    yUnitData=(yupperCorner-ylowerCorner)/ylen
+#    # 単位データ毎の緯度/経度を後で付加するため、単位データ当たりの緯度/経度を求めておく
+#    xUnitData=(xupperCorner-xlowerCorner)/xlen
+#    yUnitData=(yupperCorner-ylowerCorner)/ylen
 
     # start point
     startx = starty = 0
@@ -175,7 +176,8 @@ def get_data_from_xml(file, data):
                 data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
 
     data = data2.reshape(ylen, xlen)    # 2次元配列に変換。xlen列分、ylen行作る
-    return data
+    return data, fileNameMesh1, fileNameMesh2, fileNameMesh3\
+#        ,xlowerCorner, ylowerCorner, xupperCorner, yupperCorner
 #-------------Main---------------------------------
 def main():
     print(sys.argv[0]+": Started @",datetime.datetime.now())
@@ -199,12 +201,15 @@ def main():
     print("2nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8,mesh_ns*8,mesh_ew*mesh_ns*8*8))
     print("2nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8,mesh_ns*8,mesh_ew*mesh_ns*8*8))
     print("3nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8*10,mesh_ns*8*10,mesh_ew*mesh_ns*8*10*8*10))
-    print("data mesh -> EW*NS=%d*%d=%d" %(mesh_ew*8*10*225,mesh_ns*8*10*150,mesh_ew*mesh_ns*8*10*225*8*100*150))
+    print("data mesh -> EW*NS=%d*%d=%d" %(mesh_ew*8*10*225,mesh_ns*8*10*150,mesh_ew*mesh_ns*8*10*225*8*10*150))
+    gsigridmap=np.zeros(mesh_ew*8*10*225*mesh_ns*8*10*150).reshape(mesh_ns, mesh_ew, 8, 8, 10, 10, 150, 225)    # GSIのメッシュ領域型にreshape
+#    print(gsigridmap.shape)
+#    pprint(gsigridmap)
 
 # zipファイル読み込み
     zipdir=pathlib.Path("data")
-    for i in range(mesh_ns):
-        for j in range(mesh_ew):
+    for i in range(mesh_ns):        # 1次メッシュ南北方向
+        for j in range(mesh_ew):    # 1次メッシュ東西方向
             srczip="FG-GML-%d-*.zip" %(scope_mesh[i][j])
             for zf in zipdir.glob(srczip):  # 取得出来たzipファイルは２次メッシュレベル
                 print(zf)
@@ -214,16 +219,94 @@ def main():
                 for (xfile, xdata) in xmls.items():   # 取得できたxmlファイルは3次メッシュレベル
                     # ファイル名
 #                    print('xml file: %s' % xfile)
-                    data=get_data_from_xml(xfile, xdata)
+                    (data, Mesh1, Mesh2,Mesh3\
+#                    ,xlowerCorner\
+#                    ,ylowerCorner\
+#                    ,xupperCorner\
+#                    ,yupperCorner\
+                    )=get_data_from_xml(xfile, xdata)
+#                    print("Mesh1="+Mesh1)
+#                    print("Mesh2="+Mesh2)
+#                    print("Mesh3="+Mesh3)
+##                    print("xlowerCorner="+str(xlowerCorner))
+##                    print("ylowerCorner="+str(ylowerCorner))
+##                    print("xupperCorner="+str(xupperCorner))
+##                    print("yupperCorner="+str(yupperCorner))
+                    gsiIdxNS1=0        # 1次メッシュ南北方向の座標
+                    gsiIdxEW1=0        # 1次メッシュ東西方向の座標
+                    for ii in range(mesh_ns):
+                        for jj in range(mesh_ew):
+                            if scope_mesh[ii,jj]==Mesh1:
+                                gsiIdxNS1=ii        # 1次メッシュ南北方向の座標
+                                gsiIdxEW1=jj        # 1次メッシュ東西方向の座標
+                                break
+                        else:
+                            continue
+                        break
+                    gsiIdxNS2=int(int(Mesh2)/10)    # 2次メッシュ南北方向の座標
+                    gsiIdxEW2=int(Mesh2)%10         # 2次メッシュ東西方向の座標
+                    gsiIdxNS3=int(int(Mesh3)/10)    # 3次メッシュ南北方向の座標
+                    gsiIdxEW3=int(Mesh3)%10         # 3次メッシュ東西方向の座標
+#                    print("gsiIdxNS1="+str(gsiIdxNS1))
+#                    print("gsiIdxEW1="+str(gsiIdxEW1))
+#                    print("gsiIdxNS2="+str(gsiIdxNS2))
+#                    print("gsiIdxEW2="+str(gsiIdxEW2))
+#                    print("gsiIdxNS3="+str(gsiIdxNS3))
+#                    print("gsiIdxEW3="+str(gsiIdxEW3))
+#                    for idxns in range(150):
+#                        for idxew in range(225):
+#                            gsigridmap[\
+#                             gsiIdxNS1,gsiIdxEW1\
+#                            ,gsiIdxNS2,gsiIdxEW2\
+#                            ,gsiIdxNS3,gsiIdxEW3\
+#                            ,idxns,idxew]=data[idxns,idxew]
+#                            if gsigridmap[\
+#                             gsiIdxNS1,gsiIdxEW1\
+#                            ,gsiIdxNS2,gsiIdxEW2\
+#                            ,gsiIdxNS3,gsiIdxEW3\
+#                            ,idxns,idxew]!=0:
+#                                print(str(gsigridmap[\
+#                                 gsiIdxNS1,gsiIdxEW1\
+#                                ,gsiIdxNS2,gsiIdxEW2\
+#                                ,gsiIdxNS3,gsiIdxEW3\
+#                                ,idxns,idxew]))
+
+                    gsigridmap[
+                     gsiIdxNS1,gsiIdxEW1\
+                    ,gsiIdxNS2,gsiIdxEW2\
+                    ,gsiIdxNS3,gsiIdxEW3
+                    ]=data
+
+# gsigridmapはGSIと同じ形で南西から北東に向かって敷き詰められているので、
+# 今度はimggridmapに対して北西から南東に向かって上から敷き詰め直す
+    imglist=[]
+    for gsiIdxNS1 in range(mesh_ns-1, -1, -1):           # 一番北の方から取っていく:1次メッシュレベル
+        for gsiIdxNS2 in range(7, -1, -1):               # 一番北の方から取っていく:2次メッシュレベル
+            for gsiIdxNS3 in range(9, -1, -1):           # 一番北の方から取っていく:3次メッシュレベル
+                for gsiIdxNS4 in range(150):            # 一番北の方から取っていく:標高データレベル(標高データは北から入っているので注意)
+                    for gsiIdxEW1 in range(mesh_ew):    # 一番西の方から取っていく:1次メッシュレベル
+                        for gsiIdxEW2 in range(8):      # 一番西の方から取っていく:2次メッシュレベル
+                            for gsiIdxEW3 in range(10): # 一番西の方から取っていく:3次メッシュレベル
+#                                for gsiIdxEW4 in range(225): # 一番西の方から取っていく:標高データレベル
+                                imglist.extend(\
+                                    gsigridmap[\
+                                     gsiIdxNS1,gsiIdxEW1\
+                                    ,gsiIdxNS2,gsiIdxEW2\
+                                    ,gsiIdxNS3,gsiIdxEW3\
+                                    ,gsiIdxNS4\
+                                    ]\
+                                )
+# adhoc
+    del gsigridmap
+    gc.collect()
+#    print(str(len(imglist)))
+    imggridmap=np.array(imglist).reshape(mesh_ew*8*10*225,mesh_ns*8*10*150) # 全部入ったらreshape
+# イメージ出力
+    plt.imshow(imggridmap)
+    plt.colorbar()
+    plt.show()
 
     print(sys.argv[0]+": Finished @",datetime.datetime.now())
-
-'''
-#print(data)
-plt.imshow(data)
-plt.colorbar()
-plt.show()
-'''
 
 if __name__ == '__main__':
     main()
