@@ -198,11 +198,11 @@ def main():
     scope_mesh,mesh_ns,mesh_ew=scope_mesh_generate(start_mesh, end_mesh)
     print("Scope Primary Mesh No")
     pprint(scope_mesh)
-    print("2nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8,mesh_ns*8,mesh_ew*mesh_ns*8*8))
-    print("2nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8,mesh_ns*8,mesh_ew*mesh_ns*8*8))
-    print("3nd mesh  -> EW*NS=%d*%d=%d" %(mesh_ew*8*10,mesh_ns*8*10,mesh_ew*mesh_ns*8*10*8*10))
-    print("data mesh -> EW*NS=%d*%d=%d" %(mesh_ew*8*10*225,mesh_ns*8*10*150,mesh_ew*mesh_ns*8*10*225*8*10*150))
-    gsigridmap=np.zeros(mesh_ew*8*10*225*mesh_ns*8*10*150).reshape(mesh_ns, mesh_ew, 8, 8, 10, 10, 150, 225)    # GSIのメッシュ領域型にreshape
+    print("1nd mesh  -> NS*EW=%d*%d=%d" %(mesh_ns,mesh_ew,mesh_ew*mesh_ns))
+    print("2nd mesh  -> NS*EW=%d*%d=%d" %(mesh_ns*8,mesh_ew*8,mesh_ns*8*mesh_ew*8))
+    print("3rd mesh  -> NS*EW=%d*%d=%d" %(mesh_ns*8*10,mesh_ew*8*10,mesh_ns*8*10*mesh_ew*8*10))
+    print("data mesh -> NS*EW=%d*%d=%d" %(mesh_ns*8*10*150,mesh_ew*8*10*225,mesh_ns*8*10*150*mesh_ew*8*10*225))
+    gsigridmap=np.zeros(mesh_ns*8*10*150*mesh_ew*8*10*225).reshape(mesh_ns, mesh_ew, 8, 8, 10, 10, 150, 225)    # GSIのメッシュ領域型にreshape
 #    print(gsigridmap.shape)
 #    pprint(gsigridmap)
 
