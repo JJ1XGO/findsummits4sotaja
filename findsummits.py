@@ -136,8 +136,8 @@ def get_data_from_xml(file, data):
     r = re.compile("<gml:high>(.+) (.+)</gml:high>")
     m = r.search(strdata)
     if m != None:
-        xlen = int(m.group(1)) + 1  # highのX値(5mメッシュだと224)+1
-        ylen = int(m.group(2)) + 1  # highのY値(5mメッシュだと149) +1
+        xlen = int(m.group(1)) + 1  # highのX値(西から東方向。5mメッシュだと224)+1
+        ylen = int(m.group(2)) + 1  # highのY値(北から南方向。5mメッシュだと149) +1
 #    print("mesh xlen="+str(xlen)+" ylen="+str(ylen))
 #    # 単位データ毎の緯度/経度を後で付加するため、単位データ当たりの緯度/経度を求めておく
 #    xUnitData=(xupperCorner-xlowerCorner)/xlen
@@ -175,7 +175,7 @@ def get_data_from_xml(file, data):
             else:
                 data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
 
-    data = data2.reshape(xlen, ylen)    # 2次元配列に変換。xlen列分、ylen行作る
+    data = data2.reshape(ylen, xlen)    # 2次元配列に変換。xlen列分、ylen行作る
     return data, fileNameMesh1, fileNameMesh2, fileNameMesh3\
 #        ,xlowerCorner, ylowerCorner, xupperCorner, yupperCorner
 #-------------Main---------------------------------
@@ -207,6 +207,7 @@ def main():
 #    pprint(gsigridmap)
 
 # zipファイル読み込み
+    print(sys.argv[0]+": read zipfile & get height datas Started @",datetime.datetime.now())
     zipdir=pathlib.Path("data")
     for i in range(mesh_ns):        # 1次メッシュ南北方向
         for j in range(mesh_ew):    # 1次メッシュ東西方向
@@ -276,9 +277,11 @@ def main():
                     ,gsiIdxNS2,gsiIdxEW2\
                     ,gsiIdxNS3,gsiIdxEW3
                     ]=data
+    print(sys.argv[0]+": read zipfile & get height datas Finished @",datetime.datetime.now())
 
 # gsigridmapはGSIと同じ形で敷き詰められているので、
 # imggridmapに対して1枚のイメージに敷き詰め直す
+    print(sys.argv[0]+": integrate into 1 gridmesh(Map Image) Started @",datetime.datetime.now())
     imglist=[]
     for gsiIdxNS1 in range(mesh_ns):                            # 一番南の方から取っていく:1次メッシュレベル
         for gsiIdxNS2 in range(8):                              # 一番南の方から取っていく:2次メッシュレベル
@@ -301,7 +304,9 @@ def main():
     gc.collect()
 #    print(str(len(imglist)))
     imggridmap=np.array(imglist).reshape(mesh_ns*8*10*150,mesh_ew*8*10*225) # 全部入ったらreshape
+    print(sys.argv[0]+": integrate into 1 gridmesh(Map Image) Finished @",datetime.datetime.now())
 # イメージ出力
+    print(sys.argv[0]+": generating image @",datetime.datetime.now())
     plt.imshow(imggridmap)
     plt.colorbar()
     plt.show()
