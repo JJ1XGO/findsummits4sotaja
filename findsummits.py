@@ -175,7 +175,7 @@ def get_data_from_xml(file, data):
             else:
                 data2[i] = data[i-start_pos]    # startPointに達したら値を入れる
 
-    data = data2.reshape(ylen, xlen)    # 2次元配列に変換。xlen列分、ylen行作る
+    data = data2.reshape(xlen, ylen)    # 2次元配列に変換。xlen列分、ylen行作る
     return data, fileNameMesh1, fileNameMesh2, fileNameMesh3\
 #        ,xlowerCorner, ylowerCorner, xupperCorner, yupperCorner
 #-------------Main---------------------------------
@@ -300,7 +300,7 @@ def main():
     del gsigridmap
     gc.collect()
 #    print(str(len(imglist)))
-    imggridmap=np.array(imglist).reshape(mesh_ew*8*10*225,mesh_ns*8*10*150) # 全部入ったらreshape
+    imggridmap=np.array(imglist).reshape(mesh_ns*8*10*150,mesh_ew*8*10*225) # 全部入ったらreshape
 # イメージ出力
     plt.imshow(imggridmap)
     plt.colorbar()
