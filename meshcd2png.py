@@ -50,9 +50,6 @@ def latlon2PixelCoordinates(lat, lon, z):
     return pixelX, pixelY
 
 def latlon2tileCoordinates(lat, lon, z):
-    x = int((lon / 180 + 1) * 2**z / 2) # x座標
-    y = int(((-log(tan((45 + lat / 2) * pi / 180)) + pi) * 2**z / (2 * pi))) # y座標
-    print(x,y)
     pix=256
     (pixelX,pixelY)=latlon2PixelCoordinates(lat, lon, z)
     tileX=int(pixelX/pix)
