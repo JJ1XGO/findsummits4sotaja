@@ -7,13 +7,17 @@ from math import log
 from math import tan
 from math import sin
 from numpy import arctanh
+## defval
+# 座標を求める際に使用する定数
+L = 85.05112878
+pix=256     # pngタイルの縦横dot数でもある
+## その他
+dtlZoomLvl=15# 最も詳細な標高データが入ったzoomレベル
 
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):
-
     # 文字列に変換
     meshCode = str(meshCode)
-
     # １次メッシュ用計算
     code_first_two = meshCode[0:2]
     code_last_two = meshCode[2:4]
@@ -31,7 +35,6 @@ def mesh2latlon(meshCode):
             code_sixth = int(code_sixth)
             lat += code_fifth * 2 / 3 / 8
             lon += code_sixth / 8
-
         # ３次メッシュ用計算
         if len(meshCode) == 8:
             code_seventh = meshCode[6:7]
@@ -42,20 +45,18 @@ def mesh2latlon(meshCode):
             lon += code_eighth / 8 / 10
 
     return(lat, lon)
-
+# 緯度経度からピクセル座標を返す
 def latlon2PixelCoordinates(lat, lon, z):
-    L = 85.05112878
     pixelX = int( (2**(z+7)) * ((lon/180) + 1) )
     pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(L * pi/180))) )
     return pixelX, pixelY
-
+# 緯度経度からタイル座標と、そのタイル内の座標を返す
 def latlon2tileCoordinates(lat, lon, z):
-    pix=256
     (pixelX,pixelY)=latlon2PixelCoordinates(lat, lon, z)
     tileX=int(pixelX/pix)
     tileY=int(pixelY/pix)
-    pointX=int(pixelX%pix)
-    pointY=int(pixelY%pix)
+    pointX=int(pixelX%pix)-1    # 0から数えるので-1しておく
+    pointY=int(pixelY%pix)-1    # 同上
     print(tileX, tileY, pointX, pointY)
     return tileX, tileY, pointX, pointY
 
@@ -70,9 +71,9 @@ def main():
     print(start_lat, start_lon)
     (end_lat,end_lon)=mesh2latlon(wkendmesh1)
     print(end_lat, end_lon)
-    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tileCoordinates(start_lat, start_lon, 15)   # zoomレベルは取り敢えず15固定
+    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tileCoordinates(start_lat, start_lon, dtlZoomLvl)
     print(startTileX,startTileY)
-    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tileCoordinates(end_lat, end_lon, 15)   # zoomレベルは取り敢えず15固定
+    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tileCoordinates(end_lat, end_lon, dtlZoomLvl)
     print(endTileX,endTileY)
 
     print(sys.argv[0]+": Finished @",datetime.datetime.now())
