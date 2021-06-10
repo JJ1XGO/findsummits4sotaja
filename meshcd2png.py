@@ -5,8 +5,8 @@ from math import e
 #from math import atan
 from math import log
 from math import tan
-#from math import sin
-#from numpy import arctanh
+from math import sin
+from numpy import arctanh
 
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):
@@ -43,10 +43,24 @@ def mesh2latlon(meshCode):
 
     return(lat, lon)
 
-def latlon2tile(lat, lon, z):
+def latlon2PixelCoordinates(lat, lon, z):
+    L = 85.05112878
+    pixelX = int( (2**(z+7)) * ((lon/180) + 1) )
+    pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(L * pi/180))) )
+    return pixelX, pixelY
+
+def latlon2tileCoordinates(lat, lon, z):
     x = int((lon / 180 + 1) * 2**z / 2) # x座標
     y = int(((-log(tan((45 + lat / 2) * pi / 180)) + pi) * 2**z / (2 * pi))) # y座標
-    return x, y
+    print(x,y)
+    pix=256
+    (pixelX,pixelY)=latlon2PixelCoordinates(lat, lon, z)
+    tileX=int(pixelX/pix)
+    tileY=int(pixelY/pix)
+    pointX=int(pixelX%pix)
+    pointY=int(pixelY%pix)
+    print(tileX, tileY, pointX, pointY)
+    return tileX, tileY, pointX, pointY
 
 #-------------Main---------------------------------
 def main():
@@ -59,10 +73,10 @@ def main():
     print(start_lat, start_lon)
     (end_lat,end_lon)=mesh2latlon(wkendmesh1)
     print(end_lat, end_lon)
-    (start_x,start_y)=latlon2tile(start_lat, start_lon, 15)   # zoomレベルは取り敢えず15固定
-    print(start_x, start_y)
-    (end_x,end_y)=latlon2tile(end_lat, end_lon, 15)   # zoomレベルは取り敢えず15固定 終点は返ってくる座標の左上なのでx,yそれぞれ-1するのを忘れずに
-    print(end_x, end_y)
+    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tileCoordinates(start_lat, start_lon, 15)   # zoomレベルは取り敢えず15固定
+    print(startTileX,startTileY)
+    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tileCoordinates(end_lat, end_lon, 15)   # zoomレベルは取り敢えず15固定
+    print(endTileX,endTileY)
 
     print(sys.argv[0]+": Finished @",datetime.datetime.now())
 
