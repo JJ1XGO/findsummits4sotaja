@@ -55,8 +55,8 @@ def latlon2tileCoordinates(lat, lon, z):
     (pixelX,pixelY)=latlon2PixelCoordinates(lat, lon, z)
     tileX=int(pixelX/pix)
     tileY=int(pixelY/pix)
-    pointX=int(pixelX%pix)-1    # 0から数えるので-1しておく
-    pointY=int(pixelY%pix)-1    # 同上
+    pointX=int(pixelX%pix)
+    pointY=int(pixelY%pix)
     print(tileX, tileY, pointX, pointY)
     return tileX, tileY, pointX, pointY
 
