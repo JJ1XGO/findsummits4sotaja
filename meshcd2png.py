@@ -6,6 +6,8 @@ from math import e
 from math import log
 from math import tan
 from math import sin
+from math import asin
+from math import tanh
 from numpy import arctanh
 ## defval
 # 座標を求める際に使用する定数
@@ -46,18 +48,23 @@ def mesh2latlon(meshCode):
 
     return(lat, lon)
 # 緯度経度からピクセル座標を返す
-def latlon2PixelCoordinates(lat, lon, z):
+def latlon2PixelPoint(lat, lon, z):
     pixelX = int( (2**(z+7)) * ((lon/180) + 1) )
     pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(L * pi/180))) )
     return pixelX, pixelY
+# ピクセル座標から緯度経度を返す
+def pixel2LatLng(z, x, y):
+    lon = 180 * ((x / 2.0**(z+7) ) - 1)
+    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*y + arctanh(sin(pi/180*L)))))
+    return lat, lon
 # 緯度経度からタイル座標と、そのタイル内の座標を返す
-def latlon2tileCoordinates(lat, lon, z):
-    (pixelX,pixelY)=latlon2PixelCoordinates(lat, lon, z)
+def latlon2tilePixel(lat, lon, z):
+    (pixelX,pixelY)=latlon2PixelPoint(lat, lon, z)
     tileX=int(pixelX/pix)
     tileY=int(pixelY/pix)
     pointX=int(pixelX%pix)
     pointY=int(pixelY%pix)
-    print(tileX, tileY, pointX, pointY)
+    print("({}, {}) -> {}/{}/{}:({}, {})".format(lat, lon, z, tileX, tileY, pointX, pointY))
     return tileX, tileY, pointX, pointY
 
 #-------------Main---------------------------------
@@ -71,9 +78,9 @@ def main():
     print(start_lat, start_lon)
     (end_lat,end_lon)=mesh2latlon(wkendmesh1)
     print(end_lat, end_lon)
-    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tileCoordinates(start_lat, start_lon, dtlZoomLvl)
+    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
     print(startTileX,startTileY)
-    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tileCoordinates(end_lat, end_lon, dtlZoomLvl)
+    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
     print(endTileX,endTileY)
 
     print(sys.argv[0]+": Finished @",datetime.datetime.now())
