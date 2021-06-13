@@ -95,10 +95,10 @@ def main():
     print(sys.argv[0]+": Started @",datetime.datetime.now())
     kumotori=(29030,12883)# 雲取山 15/29030/12883
     akadake=(28978,12870)# 赤岳 15/28978/12870
-    m=20
+    m=14
 #    fetch_tile(dtlZoomLvl,28978,12870)
-#    scope_tile = fetch_scope_tiles((dtlZoomLvl, kumotori[0]-m, kumotori[1]-m), (dtlZoomLvl, kumotori[0]+m, kumotori[1]+m))  # 雲取山タイルを中心にした(m*2+1)**2タイル
-    scope_tile = fetch_scope_tiles((dtlZoomLvl, akadake[0]-m, akadake[1]-m), (dtlZoomLvl, akadake[0]+m, akadake[1]+m))  # 赤岳タイルを中心にした(m*2+1)**2タイル
+    scope_tile = fetch_scope_tiles((dtlZoomLvl, kumotori[0]-m, kumotori[1]-m), (dtlZoomLvl, kumotori[0]+m, kumotori[1]+m))  # 雲取山タイルを中心にした(m*2+1)**2タイル
+#    scope_tile = fetch_scope_tiles((dtlZoomLvl, akadake[0]-m, akadake[1]-m), (dtlZoomLvl, akadake[0]+m, akadake[1]+m))  # 赤岳タイルを中心にした(m*2+1)**2タイル
     print(scope_tile.shape)
 #    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
