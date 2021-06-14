@@ -108,7 +108,7 @@ def main():
     print(sys.argv[0]+": Started @",datetime.datetime.now())
     kumotori=(35.8555, 138.9438)# 雲取山 15/29030/12883
     akadake=(35.9708, 138.3701)# 赤岳 15/28978/12870
-    m=15
+    m=10
 #    (tileX, tileY, pointY, pointX)=meshcd2png.latlon2tilePixel(kumotori[0], kumotori[1], dtlZoomLvl)
     (tileX, tileY, pointY, pointX)=meshcd2png.latlon2tilePixel(akadake[0], akadake[1], dtlZoomLvl-1)
     print(dtlZoomLvl-1, tileX, tileY, pointX, pointY)

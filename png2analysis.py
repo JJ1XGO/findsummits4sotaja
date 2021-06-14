@@ -44,7 +44,7 @@ def main():
     ax.set_xticks([])
     ax.set_yticks([])
 
-    plt.savefig("tile.pdf", bbox_inches="tight")
+    plt.savefig("tile/tile.pdf", bbox_inches="tight")
     plt.show()
     print(sys.argv[0]+": Finished @",datetime.datetime.now())
 #---
