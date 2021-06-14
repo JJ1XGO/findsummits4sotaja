@@ -64,8 +64,8 @@ def latlon2tilePixel(lat, lon, z):
     tileY=int(pixelY/pix)
     pointX=int(pixelX%pix)
     pointY=int(pixelY%pix)
-    print("({}, {}) -> {}/{}/{}:({}, {})".format(lat, lon, z, tileX, tileY, pointX, pointY))
-    return tileX, tileY, pointX, pointY
+#    print("({}, {}) -> {}/{}/{}:({}, {})".format(lat, lon, z, tileX, tileY, pointX, pointY))
+    return tileX, tileY, pointY, pointX
 
 #-------------Main---------------------------------
 def main():
@@ -78,9 +78,9 @@ def main():
     print(start_lat, start_lon)
     (end_lat,end_lon)=mesh2latlon(wkendmesh1)
     print(end_lat, end_lon)
-    (startTileX,startTileY,trashPointX,trashPointY)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
+    (startTileX,startTileY,trashPointY,trashPointX)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
     print(startTileX,startTileY)
-    (endTileX,endTileY,trashPointX,trashPointY)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
+    (endTileX,endTileY,trashPointY,trashPointX)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
     print(endTileX,endTileY)
 
     print(sys.argv[0]+": Finished @",datetime.datetime.now())

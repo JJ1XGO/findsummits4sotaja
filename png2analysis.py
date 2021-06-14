@@ -17,18 +17,22 @@ def main():
     print("width: {}, height: {}".format(img.size[0], img.size[1]))
     im = np.array(img)
     # RGBから標高地を計算: x = 216R + 28G + B
-    elevs=im[:, :, 0].copy()*np.power(2,16)+im[:, :, 1].copy()*np.power(2,8)+im[:, :, 2].copy()
-    np.where(elevs<2**23, elevs*0.01, elevs)           # x < 223の場合　h = xu
-    np.where(elevs==2**23, np.nan, elevs)              # x = 223の場合　h = NA
-    np.where(elevs>2**23, (elevs-2**24)*0.01, elevs)   # x > 223の場合　h = (x-224)u
-    print(elevs.shape)
+    elevs0=im[:, :, 0].copy()*np.power(2,16)+im[:, :, 1].copy()*np.power(2,8)+im[:, :, 2].copy()
+    elevs1=np.where(elevs0<2**23, elevs0*0.01, elevs0)           # x < 223の場合　h = xu
+    del elevs0
+    elevs2=np.where(elevs1==2**23, np.nan, elevs1)              # x = 223の場合　h = NA
+    del elevs1
+    elevs3=np.where(elevs2>2**23, (elevs2-2**24)*0.01, elevs2)   # x > 223の場合　h = (x-224)u
+    del elevs2
+    print(elevs3.shape)
+    print(elevs3.max(),elevs3.min())
 #
     fig, ax = plt.subplots()
     fig.set_size_inches(16.53 * 2, 11.69 * 2)
 
     ls = LightSource(azdeg=180, altdeg=15)
-    rgb = ls.shade(elevs, cm.rainbow)
-    cs = ax.imshow(elevs)
+    rgb = ls.shade(elevs3, cm.rainbow)
+    cs = ax.imshow(elevs3)
     ax.imshow(rgb)
 
 # create an axes on the right side of ax. The width of cax will be 2%
