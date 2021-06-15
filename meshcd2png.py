@@ -6,16 +6,17 @@ import io
 from PIL import Image
 from math import pi
 from math import e
-from math import atan
 from math import log
-from math import tan
 from math import sin
+from math import tan
 from math import asin
+from math import atan
 from math import tanh
 from numpy import arctanh
+from fractions import Fraction
 ## defval
 # 座標を求める際に使用する定数
-L = 85.05112878
+L = Fraction(85.05112878)
 pix=256     # pngタイルの縦横dot数でもある
 ## その他
 dtlZoomLvl=15# 最も詳細な標高データが入ったzoomレベル
@@ -56,9 +57,9 @@ def latlon2PixelPoint(lat, lon, z):
     pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(L * pi/180))) )
     return pixelX, pixelY
 # ピクセル座標から緯度経度を返す
-def pixel2LatLng(z, x, y):
-    lon = 180 * ((x / 2.0**(z+7) ) - 1)
-    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*y + arctanh(sin(pi/180*L)))))
+def pixel2LatLng(z, pixelX, pixelY):
+    lon = 180 * ((pixelX / 2.0**(z+7) ) - 1)
+    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*pixelY + arctanh(sin(pi/180*L)))))
     return lat, lon
 # 緯度経度からタイル座標と、そのタイル内の座標を返す
 def latlon2tilePixel(lat, lon, z):
@@ -75,26 +76,38 @@ def tile2latlon(z, x, y):
     mapy=(y/2.0**z)*2*pi-pi
     lat=2*atan(e**(-mapy))*180/pi-90    # 緯度(北緯)
     return lat, lon
+# 現在のタイル座標から上位レベルのタイル座標を取得する
+def getHighLvlTilePoint(z, tileX, tileY, pointY, pointX, difflvl):
+# 一度緯度経度に変換してから新たに求め直すと
+# 誤差が生じて正しい座標が求められないケースがあるので
+# タイル座標から直接計算して求める
+# 1レベルより上のタイルを使うことはないと思うけど一応汎用的に使える様にしておく
+    denomin=np.power(2,difflvl)
+    pixx=tileX*pix+pointX
+    highlvltileX=int((pixx/denomin)/pix)
+    highlvlpointX=int((pixx/denomin)%pix)
+    pixy=tileY*pix+pointY
+    highlvltileY=int((pixy/denomin)/pix)
+    highlvlpointY=int((pixy/denomin)%pix)
+    return (z-difflvl, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)
 #
 def fetch_rough_tile(z, x, y):
     """
     与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
     """
-    # 与えられた座標の緯度経度を求める
-    (lat,lon)=tile2latlon(z, x, y)
-    # 1レベル下のタイル座標を求める
-    (tileX, tileY, pointY, pointX)=latlon2tilePixel(lat, lon, z-1)
+    # 1レベル上のタイル座標を求める
+    (highlvlz, tileX, tileY, pointY, pointX)=getHighLvlTilePoint(z, x, y, 0, 0, 1)
     if (pointY != 0 and pointY != 128):
-        print("Check pointY! {}/{}/{} (0, 0) -> ({}, {}) -> {}/{}/{}:(--> {} <--, {})".format(z, x, y, lat, lon, z-1, tileX, tileY, pointY, pointX))
+        print("Check pointY! {}/{}/{}:(0, 0) -> {}/{}/{}:(w-> {} <-w, {})".format(z, x, y, highlvlz, tileX, tileY, pointY, pointX))
     if (pointX != 0 and pointX != 128):
-        print("Check pointX! {}/{}/{} (0, 0) -> ({}, {}) -> {}/{}/{}:({}, --> {} <--)".format(z, x, y, lat, lon, z-1, tileX, tileY, pointY, pointX))
+        print("Check pointX! {}/{}/{}:(0, 0) -> {}/{}/{}:({}, w-> {} <-w)".format(z, x, y, highlvlz, tileX, tileY, pointY, pointX))
     #
-    url = "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{}/{}/{}.png".format(z-1, tileX, tileY)
+    url = "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{}/{}/{}.png".format(highlvlz, tileX, tileY)
     res=requests.get(url)
     if res.status_code == 200:
         img = Image.open(io.BytesIO(res.content))
     else:
-        print("status_code={} dem_png/{}/{}/{}".format(res.status_code, z-1, tileX, tileY))
+        print("status_code={} dem_png/{}/{}/{}.png".format(res.status_code, highlvlz, tileX, tileY))
         print("return N/A image")
         img = Image.new("RGB",(256, 256),(128,0,0))
     return img, z-1, tileX, tileY, pointX, pointY
@@ -133,11 +146,9 @@ def fetch_tile(z, x, y):
         (imgtile,zlvl,tileX,tileY,pixX,pixY) = fetch_rough_tile(z, x, y)    # 取り敢えず1レベル粗い標高タイルを取得して
         tilearry = np.array(imgtile)                                        # tilearryに入れる
         for (pixY,pixX) in list(zip(*np.where(elevsarry==2**23))):          # 標高データがN/Aの座標を取得して
-            (lat, lon)=pixel2LatLng(z, pix*x+pixX, pix*y+pixY)   # その座標の緯度経度を求め
-            # 1レベル下のタイル座標を求める
-            (tileXX, tileYY, pointY, pointX)=latlon2tilePixel(lat, lon, z-1)   # 緯度経度から取得したタイルのどの位置に当たるかを求める
-            assert tileX == tileXX, "タイル座標のXが一致していません。Image={}/{}/{}:request={}/{}/{}".format(zlvl,tileX,tileY,z-1,tileXX, tileYY)
-            assert tileY == tileYY, "タイル座標のYが一致していません。Image={}/{}/{}:request={}/{}/{}".format(zlvl,tileX,tileY,z-1,tileXX, tileYY)
+            (highlvlz, tileXX, tileYY, pointY, pointX)=getHighLvlTilePoint(z, x, y, pixY, pixX, 1)  # 1レベル上のタイル座標を求める
+            assert tileX == tileXX, "タイル座標のXが一致していません"
+            assert tileY == tileYY, "タイル座標のYが一致していません"
 #            print("{}/{}/{} ({}, {}) -> ({}, {}) -> {}/{}/{} ({}, {})".format(z,x,y,pixY,pixX,lat,lon,zlvl,tileX,tileY,pointY,pointX))
             imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
     img = Image.fromarray(imgarry)  # imgarryをImageに変換
@@ -167,9 +178,9 @@ def fetch_scope_tiles(north_west, south_east):
     )
 #-------------Main---------------------------------
 def main():
-    print(sys.argv[0]+": Started @",datetime.datetime.now())
+    print("{}: Started @{}".format(args[0],datetime.datetime.now()))
 
-    mesh1=sys.argv[1][0:4]
+    mesh1=args[1][0:4]
     wkstartmesh1=str(int(mesh1)+100)
     wkendmesh1=str(int(mesh1)+1)
     (start_lat,start_lon)=mesh2latlon(wkstartmesh1)
@@ -186,9 +197,13 @@ def main():
 #    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
     img_scope_tile.save("tile/tile.png")
+    img_scope_tile.save("tile/{}-00_{}-{}-{}_{}-{}-{}.png".format(args[1], dtlZoomLvl, startTileX, startTileY, dtlZoomLvl, endTileX, endTileY))
 
-    print(sys.argv[0]+": Finished @",datetime.datetime.now())
-
+    print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
 #---
 if __name__ == '__main__':
-    main()
+    args = sys.argv
+    if len(args)>1:
+        main()
+    else:
+        print("1次メッシュ番号を指定してください")

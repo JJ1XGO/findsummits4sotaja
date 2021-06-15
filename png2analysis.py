@@ -18,11 +18,11 @@ def main():
     im = np.array(img)
     # RGBから標高地を計算: x = 216R + 28G + B
     elevs0=im[:, :, 0].copy()*np.power(2,16)+im[:, :, 1].copy()*np.power(2,8)+im[:, :, 2].copy()
-    elevs1=np.where(elevs0<2**23, elevs0*0.01, elevs0)           # x < 223の場合　h = xu
+    elevs1=np.where(elevs0<2**23, elevs0/100, elevs0)           # x < 223の場合　h = xu
     del elevs0
     elevs2=np.where(elevs1==2**23, np.nan, elevs1)              # x = 223の場合　h = NA
     del elevs1
-    elevs3=np.where(elevs2>2**23, (elevs2-2**24)*0.01, elevs2)   # x > 223の場合　h = (x-224)u
+    elevs3=np.where(elevs2>2**23, (elevs2-2**24)/100, elevs2)   # x > 223の場合　h = (x-224)u
     del elevs2
     print(elevs3.shape)
     print(elevs3.max(),elevs3.min())
