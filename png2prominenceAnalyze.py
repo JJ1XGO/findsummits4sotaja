@@ -9,10 +9,10 @@ import matplotlib.cm as cm
 from matplotlib.colors import LightSource
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 #
-import meshcd2png
+import peak_prominence2d as pp2d
 
 def main():
-    print(sys.argv[0]+": Started @",datetime.datetime.now())
+    print("{}: Started @{}".format(args[0],datetime.datetime.now()))
     img = Image.open("tile/tile.png")
     print("width: {}, height: {}".format(img.size[0], img.size[1]))
     im = np.array(img)
@@ -26,6 +26,34 @@ def main():
     del elevs2
     print(elevs3.shape)
     print(elevs3.max(),elevs3.min())
+#
+    # 取り敢えず
+    xx=np.linspace(0,img.size[0],img.size[0])
+    yy=np.linspace(0,img.size[1],img.size[1])
+    XX,YY=np.meshgrid(xx,yy)
+    zmax=elevs3.max()
+
+    step=1  #5/10   # 細かく設定した方が精度が良いそうだが時間が掛かる。取り敢えず1m毎に設定
+    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs3,step,lats=yy,lons=xx,min_area=None,
+            min_depth=150,include_edge=True)
+
+    print ("getProminence finished")
+#    print(f"type(peaks):{type(peaks)}")         # <class 'dict'>
+#    print(f"type(idmap):{type(idmap)}")         # <class 'numpy.ndarray'>
+#    print(f"type(promap):{type(promap)}")       # <class 'numpy.ndarray'>
+#    print(f"type(parentmap):{type(parentmap)}") # <class 'numpy.ndarray'>
+    for kk,vv in peaks.items():
+        print(len(vv))
+        for pdatadtl in vv:
+            print(f"id:{vv['id']}")
+            print(f"height:{vv['height']}")
+            print(f"col_level:{vv['col_level']}")
+            print(f"prominence:{vv['prominence']}")
+            print(f"area:{vv['area']}")
+#            print(f"contours:{vv['contours']}")
+#            print(f"contour:{vv['contour']}")
+            print(f"center:{vv['center']}")
+            print(f"parent:{vv['parent']}")
 #
     fig, ax = plt.subplots()
     fig.set_size_inches(16.53 * 2, 11.69 * 2)
@@ -45,8 +73,10 @@ def main():
     ax.set_yticks([])
 
     plt.savefig("tile/tile.pdf", bbox_inches="tight")
-    plt.show()
-    print(sys.argv[0]+": Finished @",datetime.datetime.now())
+#    plt.show(block=False)
+#    plt.show()
+    print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
 #---
 if __name__ == '__main__':
+    args = sys.argv
     main()

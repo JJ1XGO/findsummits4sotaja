@@ -436,10 +436,10 @@ def getProminence(var,step,lats=None,lons=None,min_depth=None,
 
     keys=peaks.keys()
     print(keys)   ## DEBUG
-    for ii in range(len(peaks)):
-#        kk=keys[ii]    TypeEror: 'dict_keys' object is not subscriptable でエラーになる
-        kk=ii+1
-        vv=peaks[kk]
+    for (kk,vv) in peaks.items():
+#    for ii in range(len(peaks)):
+#        kk=keys[ii]    # TypeEror: 'dict_keys' object is not subscriptable でエラーになる
+#        vv=peaks[kk]
         #--------------Remove singleton peaks--------------
         if len(vv)<2:
             continue
