@@ -16,7 +16,7 @@ dtlZoomLvl=15   # 最も詳細な標高データが入ったzoomレベル
 #
 kumotori=(35.8555, 138.9438)# 雲取山 15/29030/12883
 akadake=(35.9708, 138.3701)# 赤岳 15/28978/12870
-m=10
+m=0
 ##
 def main():
     print("{}: Started @{}".format(args[0],datetime.datetime.now()))
@@ -33,4 +33,8 @@ def main():
 #---
 if __name__ == '__main__':
     args = sys.argv
+    if len(args)==1:
+        m=0
+    else:
+        m=int(sys.argv[1])
     main()
