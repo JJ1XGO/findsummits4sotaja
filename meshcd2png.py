@@ -14,6 +14,7 @@ from math import atan
 from math import tanh
 from numpy import arctanh
 from fractions import Fraction
+from concurrent.futures import ProcessPoolExecutor
 ## defval
 # 座標を求める際に使用する定数
 L = Fraction(85.05112878)
@@ -111,13 +112,8 @@ def fetch_rough_tile(z, x, y):
         print("return N/A image")
         img = Image.new("RGB",(256, 256),(128,0,0))
     return img, z-1, tileX, tileY, pointX, pointY
-#
+# 与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
 def fetch_tile(z, x, y):
-    """
-    与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
-    """
-#    url = "https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/{}/{}/{}.png".format(z, x, y)
-#    img = Image.open(io.BytesIO(requests.get(url).content))
     flgGetTile=False
     for dem5lvl in (["a", "b", "c"]):
         url = "https://cyberjapandata.gsi.go.jp/xyz/dem5{}_png/{}/{}/{}.png".format(dem5lvl, z, x, y)
@@ -125,7 +121,7 @@ def fetch_tile(z, x, y):
         if res.status_code == 200:
             if flgGetTile:  # 既に標高タイルが取得出来てる時は標高データがN/Aの部分だけ入れる
                 tilearry = np.array(Image.open(io.BytesIO(res.content)))
-                for (pixX,pixY) in list(zip(*np.where(elevsarry==2**23))):
+                for (pixY,pixX) in list(zip(*np.where(elevsarry==2**23))):
                     imgarry[pixY,pixX] = tilearry[pixY,pixX]
             else:           # 初めて標高タイルが取得出来た時はそのまま入れる
                 flgGetTile=True
@@ -151,6 +147,7 @@ def fetch_tile(z, x, y):
             assert tileY == tileYY, "タイル座標のYが一致していません"
 #            print("{}/{}/{} ({}, {}) -> ({}, {}) -> {}/{}/{} ({}, {})".format(z,x,y,pixY,pixX,lat,lon,zlvl,tileX,tileY,pointY,pointX))
             imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
+        # ↑ここのforブロックを並列処理化したいが上手く実装出来ず
     img = Image.fromarray(imgarry)  # imgarryをImageに変換
     # resizeの動きが明確にわからないので取り敢えず保留
 #    else:   # 標高タイルが取得出来てない時
@@ -161,20 +158,36 @@ def fetch_tile(z, x, y):
 #        img = crpimg.resize((crpimg.width*2, crpimg.height*2))
 
     return img
-#
+# 並列処理するためのwrapper
+def fetch_tile_wrapper(tilecdnts):
+    return fetch_tile(*tilecdnts)
+# 北西端・南東端のタイル座標を指定して、長方形領域の標高タイルを取得
 def fetch_scope_tiles(north_west, south_east):
-    """ 北西端・南東端のタイル座標を指定して、長方形領域の標高タイルを取得 """
     assert north_west[0] == south_east[0], "タイル座標のzが一致していません"
     x_range = range(north_west[1], south_east[1]+1)
     y_range = range(north_west[2], south_east[2]+1)
+# イメージタイルを取ってくる部分を並列処理化
+    tilecdnts=[]
+    for y in range(len(y_range)):
+        for x in range(len(x_range)):
+            tilecdnts.append([north_west[0], x_range[x], y_range[y]])
+    with ProcessPoolExecutor() as executor: # max_workersは取り敢えずpythonにお任せ
+        futures = executor.map(fetch_tile_wrapper, tilecdnts)
+    # イメージ取り出し。もっとスマートなやり方ありそう
+    tileimgs=[]
+    for f in futures:
+        tileimgs.append(f)
+##
     return  np.concatenate(
         [
             np.concatenate(
-                [np.array(fetch_tile(north_west[0], x, y)) for y in y_range],
-                axis=0
-            ) for x in x_range
+                [np.array(
+                    tileimgs[y*len(x_range)+x]
+                ) for x in range(len(x_range))],
+                axis=1
+            ) for y in range(len(y_range))
         ],
-        axis=1
+        axis=0
     )
 #-------------Main---------------------------------
 def main():
@@ -187,16 +200,14 @@ def main():
     print(start_lat, start_lon)
     (end_lat,end_lon)=mesh2latlon(wkendmesh1)
     print(end_lat, end_lon)
-    (startTileX,startTileY,trashPointY,trashPointX)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
+    (startTileX, startTileY, _, _)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
     print(startTileX,startTileY)
-    (endTileX,endTileY,trashPointY,trashPointX)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
+    (endTileX, endTileY, _, _)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
     print(endTileX,endTileY)
 
     scope_tile = fetch_scope_tiles((dtlZoomLvl,startTileX,startTileY), (dtlZoomLvl,endTileX,endTileY))
     print(scope_tile.shape)
-#    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
-    img_scope_tile.save("tile/tile.png")
     img_scope_tile.save("tile/{}-00_{}-{}-{}_{}-{}-{}.png".format(args[1], dtlZoomLvl, startTileX, startTileY, dtlZoomLvl, endTileX, endTileY))
 
     print("{}: Finished @{}".format(args[0],datetime.datetime.now()))

@@ -12,7 +12,7 @@ import meshcd2png as m2p
 # 座標を求める際に使用する定数
 pix=256     # pngタイルの縦横dot数でもある
 ## その他
-dtlZoomLvl=15# 最も詳細な標高データが入ったzoomレベル
+dtlZoomLvl=15   # 最も詳細な標高データが入ったzoomレベル
 #
 kumotori=(35.8555, 138.9438)# 雲取山 15/29030/12883
 akadake=(35.9708, 138.3701)# 赤岳 15/28978/12870
@@ -27,7 +27,8 @@ def main():
     print(scope_tile.shape)
 #    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
-    img_scope_tile.save("tile/{}-{}-{}_{}-{}-{}.png".format(dtlZoomLvl, tileX-m, tileY-m, dtlZoomLvl, tileX+m, tileY+m))
+#    img_scope_tile.save("tile/{}-{}-{}_{}-{}-{}.png".format(dtlZoomLvl, tileX-m, tileY-m, dtlZoomLvl, tileX+m, tileY+m))
+    img_scope_tile.save("tile/tile.png".format(dtlZoomLvl, tileX-m, tileY-m, dtlZoomLvl, tileX+m, tileY+m))
     print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
 #---
 if __name__ == '__main__':
