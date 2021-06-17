@@ -28,8 +28,8 @@ def main():
     print(elevs3.max(),elevs3.min())
 #
     # 取り敢えず
-    xx=np.linspace(0,img.size[0],img.size[0])
-    yy=np.linspace(0,img.size[1],img.size[1])
+    xx=np.linspace(0,img.size[0]-1,img.size[0])
+    yy=np.linspace(0,img.size[1]-1,img.size[1])
     XX,YY=np.meshgrid(xx,yy)
     zmax=elevs3.max()
 
