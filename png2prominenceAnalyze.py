@@ -33,7 +33,8 @@ def main():
     zmax=elevs.max()
 
     step=10  #5/10   # 細かく設定した方が精度が良いそうだが時間が掛かる。取り敢えず1m毎に設定
-    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,step,lats=yy,lons=xx,min_area=None,
+#    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,step,lats=yy,lons=xx,min_area=None,
+    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,step,
             min_depth=150,include_edge=True)
 
     print ("getProminence finished")
@@ -41,6 +42,7 @@ def main():
 #    print(f"type(idmap):{type(idmap)}")         # <class 'numpy.ndarray'>
 #    print(f"type(promap):{type(promap)}")       # <class 'numpy.ndarray'>
 #    print(f"type(parentmap):{type(parentmap)}") # <class 'numpy.ndarray'>
+    print(f"elevs.max():{elevs.max()}, (y, x):{list(zip(*np.where(elevs==elevs.max())))}")
     for kk,vv in peaks.items():
         print(len(vv))
         for vvk,vvv in vv.items():
@@ -48,10 +50,7 @@ def main():
                 print(vvk,vvv)
 #
     fig, ax = plt.subplots()
-    fig.set_size_inches(16.53 * 2, 11.69 * 2)
-
-    ls = LightSource(azdeg=180, altdeg=0)
-#    ls = LightSource()
+    ls = LightSource(azdeg=180, altdeg=15)
     rgb = ls.shade(elevs, cm.rainbow)
     cs = ax.imshow(elevs)
     ax.imshow(rgb)
