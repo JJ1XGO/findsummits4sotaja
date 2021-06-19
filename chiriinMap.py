@@ -16,15 +16,17 @@ dtlZoomLvl=15   # 最も詳細な標高データが入ったzoomレベル
 #
 kitadake=(35.6743, 138.2388)    # 北岳 15/28966/12904 (24, 205)
 kannondake=(35.7017, 138.3046)  # 観音岳 15/28972/12901 (6, 202)
+akanuke=(35.7104, 138.2969)     # 赤抜沢の頭 15/
 akadake=(35.9708, 138.3701)     # 赤岳 15/28978/12870 (207, 193)
 kumotori=(35.8555, 138.9438)    # 雲取山 15/29030/12883 (196, 249)
 m=0
 ##
 def main():
     print("{}: Started @{}".format(args[0],datetime.datetime.now()))
-    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kitadake[0], kitadake[1], dtlZoomLvl)
+#    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kitadake[0], kitadake[1], dtlZoomLvl)
 #    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kannondake[0], kannondake[1], dtlZoomLvl)
-#    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(akadake[0], akadake[1], dtlZoomLvl)
+#    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(akanuke[0], akanuke[1], dtlZoomLvl)
+    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(akadake[0], akadake[1], dtlZoomLvl)
 #    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kumotori[0], kumotori[1], dtlZoomLvl)
     print(dtlZoomLvl, tileX, tileY, pointY, pointX)
     scope_tile = m2p.fetch_scope_tiles((dtlZoomLvl, tileX-m, tileY-m), (dtlZoomLvl, tileX+m, tileY+m))  # 指定タイルを中心にした(m*2+1)**2タイル

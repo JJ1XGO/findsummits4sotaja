@@ -211,7 +211,7 @@ def main():
     zipdir=pathlib.Path("data")
     for i in range(mesh_ns):        # 1次メッシュ南北方向
         for j in range(mesh_ew):    # 1次メッシュ東西方向
-            srczip="FG-GML-%d-*.zip" %(scope_mesh[i][j])
+            srczip=f"FG-GML-{scope_mesh[i][j]}-*.zip"
             for zf in zipdir.glob(srczip):  # 取得出来たzipファイルは２次メッシュレベル
                 print(zf)
                 st=str(zf)[5:20]+".+\.xml"

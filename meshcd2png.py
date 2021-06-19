@@ -177,7 +177,7 @@ def fetch_scope_tiles(north_west, south_east):
     tileimgs=[]
     for f in futures:
         tileimgs.append(f)
-##
+#
     return  np.concatenate(
         [
             np.concatenate(
@@ -191,7 +191,7 @@ def fetch_scope_tiles(north_west, south_east):
     )
 #-------------Main---------------------------------
 def main():
-    print("{}: Started @{}".format(args[0],datetime.datetime.now()))
+    print(f"{args[0]}: Started @{datetime.datetime.now()}")
 
     mesh1=args[1][0:4]
     wkstartmesh1=str(int(mesh1)+100)
@@ -208,9 +208,9 @@ def main():
     scope_tile = fetch_scope_tiles((dtlZoomLvl,startTileX,startTileY), (dtlZoomLvl,endTileX,endTileY))
     print(scope_tile.shape)
     img_scope_tile = Image.fromarray(scope_tile)
-    img_scope_tile.save("tile/{}-00_{}-{}-{}_{}-{}-{}.png".format(args[1], dtlZoomLvl, startTileX, startTileY, dtlZoomLvl, endTileX, endTileY))
+    img_scope_tile.save(f"tile/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png")
 
-    print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
+    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     args = sys.argv
