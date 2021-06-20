@@ -32,10 +32,9 @@ def main():
     XX,YY=np.meshgrid(xx,yy)
     zmax=elevs.max()
 
-    step=10  #5/10   # 細かく設定した方が精度が良いそうだが時間が掛かる。取り敢えず1m毎に設定
+#    step=1  #5/10   # 細かく設定した方が精度が良いそうだが時間が掛かる。取り敢えず1m毎に設定
 #    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,step,lats=yy,lons=xx,min_area=None,
-    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,step,
-            min_depth=150,include_edge=True)
+    peaks,idmap,promap,parentmap=pp2d.getProminence(elevs,min_depth=150)
 
     print ("getProminence finished")
 #    print(f"type(peaks):{type(peaks)}")         # <class 'dict'>
