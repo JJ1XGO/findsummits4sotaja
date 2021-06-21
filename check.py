@@ -1,34 +1,39 @@
 import sys
 import datetime
-#import numpy as np
+import numpy as np
 #import os
 #import requests
 #import io
+from operator import itemgetter
+from itertools import product
+from scipy.ndimage.filters import maximum_filter
 #from PIL import Image
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #
-import meshcd2png as m2p
+import analyzePng as ap
 ## defval
 # その他
-dtlZoomLvl=15   # 最も詳細な標高データが入ったzoomレベル
-uppercorner=(15, 28954, 12902)
-lowercorner=(15, 28955, 12903)
-#
-def main():
-    print("{}: Started @{}".format(args[0],datetime.datetime.now()))
-    assert uppercorner[0] == lowercorner[0], "タイル座標のzが一致していません"
-    z=uppercorner[0]
+# ピークを見つけ出す
+def detectPeaksCoords(image, filter_size=20):
+    local_max = maximum_filter(image, footprint=np.ones((filter_size, filter_size)), mode='constant')
+    detected_peaks = np.ma.array(image, mask=~(image == local_max))
 
-    for y in (range(uppercorner[2],lowercorner[2]+1)):
-        for x in (range(uppercorner[1],lowercorner[1]+1)):
-            for (yy,xx) in ((0,0),(0,255),(255,0),(255,255)):
-                # タイル座標から上位レベルでのタイル座標を求める
-                (highlvlz, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)=m2p.getHighLvlTilePoint(z, x, y, yy, xx, 1)
-                print("{}/{}/{} ({}, {}) -> {}/{}/{} ({}, {})".format(z, x, y, yy, xx, highlvlz, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX))
-                (highlvlz, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)=m2p.getHighLvlTilePoint(z, x, y, yy, xx, 2)
-                print("{}/{}/{} ({}, {}) -> {}/{}/{} ({}, {})".format(z, x, y, yy, xx, highlvlz, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX))
+    # 小さいピーク値を排除（150m以下のピークは排除）
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= 150))
+    peaks_index = np.where(temp.mask != True)
+    return list(zip(*np.where(temp.mask != True)))
+
+def main():
+    print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
-    print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
+    elevs=ap.png2elevsnp()
+    peaksList=[]
+    for yy,xx in detectPeaksCoords(elevs):
+        peaksList.append((elevs[yy][xx],yy,xx))
+    peaksList.sort(key=itemgetter(0,1,2), reverse=True)
+    print(peaksList)
+#
+    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     args = sys.argv

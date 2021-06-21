@@ -1,9 +1,12 @@
 import sys
 import datetime
 import numpy as np
-#import os
+import os
 #import io
 from PIL import Image
+import cv2
+from operator import itemgetter
+from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 #
@@ -22,6 +25,15 @@ def png2elevsnp():
     elevs=np.where(elevs0==2**23, np.nan, elevs0)              # x = 223の場合　h = NA
     elevs0=elevs
     return np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)   # x > 223の場合　h = (x-224)u
+# ピークを見つけ出す
+def detectPeaksCoords(image, filter_size=20):   #filter_size*5m四方の範囲でピークを見つけ出す
+    local_max = maximum_filter(image, footprint=np.ones((filter_size, filter_size)), mode='constant')
+    detected_peaks = np.ma.array(image, mask=~(image == local_max))
+
+    # 小さいピーク値を排除（150m以下のピークは排除）
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= 150))
+    peaks_index = np.where(temp.mask != True)
+    return list(zip(*np.where(temp.mask != True)))
 #
 def main():
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
@@ -29,9 +41,43 @@ def main():
     elevs=png2elevsnp()
     print(elevs.shape)
     print(elevs.max(),elevs.min())
-## 標高の一覧(高い順)を取得
-#    elvslist=list(np.sort(np.unique(elevs))[::-1])
-#    print(len(elvslist))
+# ピーク(候補)の一覧作成
+    peaksList=[]
+    for yy,xx in detectPeaksCoords(elevs):
+        peaksList.append((elevs[yy][xx],xx,yy))
+    peaksList.sort(key=itemgetter(0,1,2), reverse=True)
+    print(len(peaksList))
+    print(peaksList)
+# 標高の一覧(高い順)を取得
+    elvslist=list(np.unique(elevs))[::-1]
+    print(len(elvslist))
+    for el in elvslist[0:10]:
+        if el > peaksList[1][0]:    # ピーク(候補)の2番目まで飛ばして良い
+            continue
+#    for el,xx,yy in peaksList[:5]:
+#        img=Image.fromarray(np.uint8(np.where(elevs>=el,0,255)))
+#        img=Image.fromarray(np.uint8(np.where(elevs>=el,255,0)))
+        img=np.uint8(np.where(elevs>=el,255,0))
+        # 輪郭を抽出する
+        contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # 輪郭を描画する
+        contimg=np.zeros(img.shape)
+        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+        # ピークをプロットして
+        for hh,xx,yy in peaksList:
+            if el > hh:
+                break
+            contimg[yy][xx]=255
+        # 再度輪郭を抽出する
+        img=np.uint8(contimg)
+        contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        print(hierarchy.shape)
+        print(hierarchy)
+        print(len(contours))
+        print(contours)
+        contimg=np.zeros(img.shape)
+        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+        cv2.imwrite(f"test/{el}.png",contimg)
 ## 取得した標高以上の標高を持つ座標を取得
 #    with ProcessPoolExecutor(max_workers=3) as executor: # max_workersは取り敢えずpythonにお任せ
 #        futures = executor.map(getElevsPoints, elvslist)
@@ -66,7 +112,7 @@ def main():
 
     fig, ax = plt.subplots()
     ax.contour(xx, yy, elevs, levels=levels)
-    plt.show()
+#    plt.show()
 #
     print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---
