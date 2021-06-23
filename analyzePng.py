@@ -9,6 +9,8 @@ from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
+## defval
+prominence=150  # ピークとコルの標高差
 #
 def getElevsPoints(elvs):
     elevs=png2elevsnp()
@@ -30,8 +32,8 @@ def detectPeaksCoords(image, filter_size=20):   #filter_size*5m四方の範囲�
     local_max = maximum_filter(image, footprint=np.ones((filter_size, filter_size)), mode='constant')
     detected_peaks = np.ma.array(image, mask=~(image == local_max))
 
-    # 小さいピーク値を排除（150m以下のピークは排除）
-    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= 150))
+    # 小さいピーク値を排除（prominenceより小さなピークは排除）
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= prominence))
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
@@ -42,19 +44,19 @@ def main():
     print(elevs.shape)
     print(elevs.max(),elevs.min())
 # ピーク(候補)の一覧作成
-    peakCandidatesList=[]
+    peakCandidates=[]
     for yy,xx in detectPeaksCoords(elevs):
-        peakCandidatesList.append((elevs[yy][xx],xx,yy))
-    peakCandidatesList.sort(key=itemgetter(0,1,2), reverse=True)
-    print(len(peakCandidatesList))
-    print(peakCandidatesList)
+        peakCandidates.append((elevs[yy][xx],(xx,yy)))
+    peakCandidates.sort(key=itemgetter(0,1), reverse=True)
+    print(len(peakCandidates))
+    print(peakCandidates)
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(len(elvslist))
-    for el in elvslist[0:50]:
-        if el > peakCandidatesList[1][0]:    # ピーク(候補)の2番目まで飛ばして良い
+    for el in elvslist[0:100]:
+        if el > peakCandidates[1][0]:    # ピーク(候補)の2番目まで飛ばして良い
             continue
-#    for el,xx,yy in peakCandidatesList[:5]:
+#    for el,xx,yy in peakCandidates[:5]:
 #        img=Image.fromarray(np.uint8(np.where(elevs>=el,0,255)))
 #        img=Image.fromarray(np.uint8(np.where(elevs>=el,255,0)))
         img=np.uint8(np.where(elevs>=el,255,0))
@@ -64,20 +66,23 @@ def main():
         contimg=np.zeros(img.shape)
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         # ピークをプロットして
-        for hh,xx,yy in peakCandidatesList:
+        for hh,xy in peakCandidates:
             if el > hh:
                 break
-            contimg[yy][xx]=255
+            contimg[xy[1]][xy[0]]=255
         # 再度輪郭を抽出する
         img=np.uint8(contimg)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         print(hierarchy.shape)
         print(hierarchy)
-        print(len(contours))
 #        print(contours)
         contimg=np.zeros(img.shape)
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         cv2.imwrite(f"test/{el}.png",contimg)
+#        for i in range(len(contours)):
+#            contimg=np.zeros(img.shape)
+#            cv2.drawContours(contimg, contours, i, 255, thickness=1)
+#            cv2.imwrite(f"test/{el}-{i}.png",contimg)
         # 家系図を作成
         familyTree=[]
         parentCnt=0
@@ -91,7 +96,7 @@ def main():
                     hclass="maybe peak"
                 else:
                     hclass="contour outside"    # 子がいれば等高線の外枠
-                familyTree.append((currentHrrchy,parentCnt*100000,hclass))
+                familyTree.append((currentHrrchy,f"{parentCnt*10000:0=7}",hclass))
                 if hrrchy[2] != -1: # 子がいれば子に入る
                     childCnt=0
                     nextHrrchy=hrrchy[2]
@@ -99,13 +104,13 @@ def main():
                         childCnt+=1
                         currentHrrchy=nextHrrchy
                         hrrchy=hierarchy[0][currentHrrchy]
-                        childNo=familyTree[hrrchy[3]][1]+childCnt*100
+                        childNo=int(familyTree[hrrchy[3]][1])+childCnt*100
                         if hrrchy[2] == -1: # 孫がいなければ通常の等高線内枠
                             hclass="maybe contour inside"
                         else:
                             hclass="maybe contour inside w/peak"    # 孫がいればピークを含む等高線の内枠(多分)
-                            childNo+=10
-                        familyTree.append((currentHrrchy,childNo,hclass))
+#                            childNo+=10
+                        familyTree.append((currentHrrchy,f"{childNo:0=7}",hclass))
                         if hrrchy[2] != -1: # 孫がいれば孫に入る
                             grandChildCnt=0
                             nextHrrchy=hrrchy[2]
@@ -113,14 +118,15 @@ def main():
                                 grandChildCnt+=1
                                 currentHrrchy=nextHrrchy
                                 hrrchy=hierarchy[0][currentHrrchy]
-                                granChildNo=familyTree[hrrchy[3]][1]+granChildCnt
+                                granChildNo=int(familyTree[hrrchy[3]][1])+grandChildCnt
                                 if hrrchy[2] == -1: # ひ孫がいなければ多分ピーク
                                     hclass="maybe peak"
+                                    print(contours[currentHrrchy])
                                 else:
                                     print(familyTree)
                                     print(currentHrrchy,childNo)
                                     assert False, "ひ孫はひ孫は想定外。内容要確認"
-                                familyTree.append((currentHrrchy,childNo,hclass))
+                                familyTree.append((currentHrrchy,f"{granChildNo:0=7}",hclass))
                                 nextHrrchy=hrrchy[0]
                             else:
                                 hrrchy=hierarchy[0][hrrchy[3]]  # 子に戻る
@@ -128,7 +134,7 @@ def main():
                     else:
                         hrrchy=hierarchy[0][hrrchy[3]]  # 親に戻る
             nextHrrchy=hrrchy[0]
-        print(familyTree)
+        print(el,familyTree)
 ## 取得した標高以上の標高を持つ座標を取得
 #    with ProcessPoolExecutor(max_workers=3) as executor: # max_workersは取り敢えずpythonにお任せ
 #        futures = executor.map(getElevsPoints, elvslist)
