@@ -70,7 +70,7 @@ def main():
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(len(elvslist))
-    for el in elvslist[0:50]:
+    for el in elvslist[0:100]:
         if el > peakCandidates[1][0]:    # ピーク(候補)の2番目まで飛ばして良い
             continue
 #    for el,xx,yy in peakCandidates[:5]:
@@ -116,8 +116,9 @@ def main():
                     hclass="maybe peak"
                 else:
                     hclass="contour outside"    # 子がいれば等高線の外枠
-                peakNo=-1
-                familyTree.append([currentHrrchy,f"{parentCnt*10000:0=7}",hclass,peakCnt,peakNo])
+#                peakNo=-1
+#                familyTree.append([currentHrrchy,f"{parentCnt*10000:0=7}",hclass,peakCnt,peakNo])
+                familyTree.append([currentHrrchy,f"{parentCnt*10000:0=7}",hclass])
                 if hrrchy[2] != -1: # 子がいれば子に入る
                     childCnt=0
                     nextHrrchy=hrrchy[2]
@@ -127,25 +128,26 @@ def main():
                         hrrchy=hierarchy[0][currentHrrchy]
                         childNo=int(familyTree[hrrchy[3]][1])+childCnt*100
                         if hrrchy[2] == -1: # 孫がいなければ通常の等高線内枠
-                            hclass="maybe contour inside"
-                            print(currentHrrchy,contours[currentHrrchy])
+                            hclass="contour inside"
+#                            print(currentHrrchy,contours[currentHrrchy])
                             # ピークの標高に近いうちは輪郭の上に乗っている事がある。ピーク候補がいるか存在チェック
-                            for i,pc in enumerate(peakCandidates):
-                                if pc[0]<el: # 現在の標高より低いピークは対象外
-                                    break
-                                for ii in range(len(contours[currentHrrchy])):
-                                    if contours[currentHrrchy][ii][0][0]==pc[1][0] and contours[currentHrrchy][ii][0][1]==pc[1][1]:
-                                        print(f"found peak! {i} {pc}")
-                                        hclass="contour inside incld/peak"
-                                        peakNo=i
-                                        peakCnt+=1
-                                        break
-                                else:
-                                    continue
-                                break
+#                            for i,pc in enumerate(peakCandidates):
+#                                if pc[0]<el: # 現在の標高より低いピークは対象外
+#                                    break
+#                                for ii in range(len(contours[currentHrrchy])):
+#                                    if contours[currentHrrchy][ii][0][0]==pc[1][0] and contours[currentHrrchy][ii][0][1]==pc[1][1]:
+#                                        print(f"found peak! {i} {pc}")
+#                                        hclass="contour inside incld/peak"
+#                                        peakNo=i
+#                                        peakCnt+=1
+#                                        break
+#                                else:
+#                                    continue
+#                                break
                         else:
-                            hclass="maybe contour inside w/peak"    # 孫がいればピークを含む等高線の内枠(多分)
-                        familyTree.append([currentHrrchy,f"{childNo:0=7}",hclass,1,peakNo])
+                            hclass="contour inside (maybe w/peak)"    # 孫がいればピークを含む等高線の内枠(多分)
+#                        familyTree.append([currentHrrchy,f"{childNo:0=7}",hclass,1,peakNo])
+                        familyTree.append([currentHrrchy,f"{childNo:0=7}",hclass])
                         if hrrchy[2] != -1: # 孫がいれば孫に入る
                             grandChildCnt=0
                             nextHrrchy=hrrchy[2]
@@ -156,36 +158,85 @@ def main():
                                 granChildNo=int(familyTree[hrrchy[3]][1])+grandChildCnt
                                 if hrrchy[2] == -1: # ひ孫がいなければ多分ピーク
                                     hclass="maybe peak"
-                                    print(currentHrrchy,contours[currentHrrchy])
+#                                    print(currentHrrchy,contours[currentHrrchy])
                                     # ピーク候補がいるか存在チェック
-                                    for i,pc in enumerate(peakCandidates):
-                                        if pc[0]<el: # 現在の標高より低いピークは対象外
-                                            break
-                                        for ii in range(len(contours[currentHrrchy])):
-                                            if contours[currentHrrchy][ii][0][0]==pc[1][0] and contours[currentHrrchy][ii][0][1]==pc[1][1]:
-                                                print(f"found peak! {i} {pc}")
-                                                hclass="peak"
-                                                peakNo=i
-                                                peakCnt+=1
-                                                break
-                                        else:
-                                            continue
-                                        break
+#                                    for i,pc in enumerate(peakCandidates):
+#                                        if pc[0]<el: # 現在の標高より低いピークは対象外
+#                                            break
+#                                        for ii in range(len(contours[currentHrrchy])):
+#                                            if contours[currentHrrchy][ii][0][0]==pc[1][0] and contours[currentHrrchy][ii][0][1]==pc[1][1]:
+#                                                print(f"found peak! {i} {pc}")
+#                                                hclass="peak"
+#                                                peakNo=i
+#                                                peakCnt+=1
+#                                                break
+#                                        else:
+#                                            continue
+#                                        break
                                 else:
                                     print(familyTree)
                                     print(currentHrrchy,childNo)
                                     assert False, "ひ孫はひ孫は想定外。内容要確認"
-                                familyTree.append([currentHrrchy,f"{granChildNo:0=7}",hclass,1,peakNo])
+#                                familyTree.append([currentHrrchy,f"{granChildNo:0=7}",hclass,1,peakNo])
+                                familyTree.append([currentHrrchy,f"{granChildNo:0=7}",hclass])
                                 nextHrrchy=hrrchy[0]
                             else:
                                 hrrchy=hierarchy[0][hrrchy[3]]  # 子に戻る
                         nextHrrchy=hrrchy[0]
                     else:
-                        print(familyTree[hrrchy[3]])
-                        familyTree[hrrchy[3]][3]=peakCnt    # 親にピークを見つけたカウントをセット
+#                        print(familyTree[hrrchy[3]])
+#                        familyTree[hrrchy[3]][3]=peakCnt    # 親にピークを見つけたカウントをセット
                         hrrchy=hierarchy[0][hrrchy[3]]  # 親に戻る
             nextHrrchy=hrrchy[0]
         print(el,familyTree)
+        # 家系図にピーク候補の情報追加
+        for ft in familyTree:
+            if int(ft[1])%10000 == 0: # 親は存在チェックしない
+                continue
+            i = ft[0]
+            for contpoint in contours[i]:  # 境界線の座標情報を舐める
+                compPc=(contpoint[0][0],contpoint[0][1])
+                for iii,pc in enumerate(peakCandidates):
+                    if pc[0]<el: # 現在の標高より低いピークは対象外
+                        continue
+                    if compPc==pc[1]:    # 輪郭線の座標とピーク候補の座標が一致
+                        print(f"found peak! {i}　({iii} {pc})")
+                        if int(familyTree[i][1])%100 == 0: # 子だったら輪郭線内側
+                            familyTree[i][2]="contour inside incld/peak"
+                        else:   # 孫だったらピーク
+                            familyTree[i][2]="peak"
+                        familyTree[i].append(1)  # ピーク候補の数(1)を後ろに追加
+                        familyTree[i].append(iii)  # ピーク候補の何番目かを後ろ追加
+                        break
+                else:
+                    continue
+                break
+            else:   # 見つからなかったら
+                familyTree[i].append(0)     # ピーク候補の数(0)を後ろに追加
+                familyTree[i].append(-1)    # ピーク候補の何番目かには-1を後ろに追加
+        print(el,familyTree)
+        # 家系図の親にピーク候補がいくつ含まれるか情報追加
+        for ft in familyTree:
+            if int(ft[1])%10000 == 0:    # 親の時
+                if ft[0]==0:
+                    pass
+                else:
+                    familyTree[parentIdx].append(peakCnt)
+                    familyTree[parentIdx].append(-1)    # 取り敢えず
+                parentIdx=ft[0]
+                parentNo=int(ft[1])/10000
+                peakCnt=0
+                prePeakNo=-1
+            else:   # 親以外
+                if ft[3]!=0 and prePeakNo!=ft[4]:
+                    peakCnt+=1
+                    prePeakNo=ft[4]
+        else:
+            familyTree[parentIdx].append(peakCnt)
+            familyTree[parentIdx].append(-1)    # 取り敢えず
+        for ft in familyTree:
+            print(el,ft)
+
 ## 取得した標高以上の標高を持つ座標を取得
 #    with ProcessPoolExecutor(max_workers=3) as executor: # max_workersは取り敢えずpythonにお任せ
 #        futures = executor.map(getElevsPoints, elvslist)
