@@ -3,7 +3,6 @@ import datetime
 import numpy as np
 import os
 #import io
-from PIL import Image
 import cv2
 from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
@@ -13,20 +12,20 @@ from concurrent.futures import ProcessPoolExecutor
 minimumProminence=150  # プロミネンス(ピークとコルの標高差)最小値
 #
 def getElevsPoints(elvs):
-    elevs=png2elevsnp()
+    elevs=png2elevs()
     return elvs,list(zip(*np.where(elevs>=elvs)))
 #
-def png2elevsnp():
-    img = Image.open("tile/tile.png")
-#    print(f"width: {img.size[0]}, height: {img.size[1]}")
-    im = np.array(img)
-    # RGBから標高地を計算: x = 216R + 28G + B
-    elevs0=im[:, :, 0].copy()*np.power(2,16)+im[:, :, 1].copy()*np.power(2,8)+im[:, :, 2].copy()
+def png2elevs():
+    img = cv2.imread("tile/tile.png")
+    # RGBから標高地を計算: x = 2**16R + 2**8G + B
+    # openCVではGBRの順番になるので注意
+    elevs0=img[:, :, 2].copy()*np.power(2,16)+img[:, :, 1].copy()*np.power(2,8)+img[:, :, 0].copy()
     elevs=np.where(elevs0<2**23, elevs0/100, elevs0)           # x < 223の場合　h = xu
     elevs0=elevs
     elevs=np.where(elevs0==2**23, np.nan, elevs0)              # x = 223の場合　h = NA
     elevs0=elevs
-    return np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)   # x > 223の場合　h = (x-224)u
+    elevs=np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)   # x > 223の場合　h = (x-224)u
+    return elevs
 # ピークを見つけ出す
 def detectPeaksCoords(image, filter_size=16):   #filter_size*5m四方の範囲でピークを見つけ出す
     local_max = maximum_filter(image, footprint=np.ones((filter_size, filter_size)), mode='constant')
@@ -40,17 +39,13 @@ def detectPeaksCoords(image, filter_size=16):   #filter_size*5m四方の範囲�
 def main():
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
-    elevs=png2elevsnp()
+    elevs=png2elevs()
     print(elevs.shape)
-    print(elevs.max(),elevs.min())
 # ピーク(候補)の一覧作成
     peakCandidates=[]
     for yy,xx in detectPeaksCoords(elevs):
         peakCandidates.append((elevs[yy][xx],(xx,yy)))
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
-    print(len(peakCandidates))
-    for i,pc in enumerate(peakCandidates):
-        print(i,pc)
     # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
     uniqPeakCandidates=[]
     for i,pc in enumerate(peakCandidates):
@@ -66,10 +61,10 @@ def main():
         prepc=pc
     peakCandidates=uniqPeakCandidates
     del uniqPeakCandidates
-    print(len(peakCandidates))
     for i,pc in enumerate(peakCandidates):
-        print(i,pc)
+        print(f"peakCandidates:{i} {pc}")
 # 標高の一覧(高い順)を取得
+    print(elevs.max(),elevs.min())
     elvslist=list(np.unique(elevs))[::-1]
     print(len(elvslist))
     for el in elvslist[0:100]:
@@ -91,9 +86,7 @@ def main():
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        print(hierarchy.shape)
         print(hierarchy)
-#        print(contours)
         contimg=np.zeros(img.shape)
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         cv2.imwrite(f"test/{el}.png",contimg)
@@ -127,7 +120,7 @@ def main():
                         if hrrchy[2] == -1: # 孫がいなければ通常の等高線内枠
                             hclass="contour inside"
                         else:
-                            hclass="contour inside (maybe grandchild has a peak)"    # 孫がいればピークを含む等高線の内枠(多分)
+                            hclass="contour inside (maybe grandchild is a peak)"    # 孫がいればピークを含む等高線の内枠(多分)
                         familyTree.append([currentHrrchy,f"{childNo:0=7}",hclass])
                         if hrrchy[2] != -1: # 孫がいれば孫に入る
                             grandChildCnt=0
@@ -180,9 +173,14 @@ def main():
                                 familyTree[i][2]="contour inside incld/peak"
                             else:   # 孫だったらピーク
                                 familyTree[i][2]="peak"
-                            familyTree[i].append(1)  # ピーク候補の数(1)を後ろに追加
-                            familyTree[i].append(iii)  # ピーク候補の何番目かを後ろに追加
-                            familyTree[i].append(pc[0])  # ピーク候補の標高を後ろに追加
+                                # 自分の親(=子)の情報を書き換える
+                                familyTree[i-1][2]="contour inside (grandchild is a peak)"
+                                familyTree[i-1][3]=1    # ピーク候補の数
+                                familyTree[i-1][4]=iii  # ピーク候補の何番目か
+                                familyTree[i-1][5]=pc[0]    # ピーク候補の標高
+                            familyTree[i].append(1)     # ピーク候補の数(1)を後ろに追加
+                            familyTree[i].append(iii)   # ピーク候補の何番目かを後ろに追加
+                            familyTree[i].append(pc[0]) # ピーク候補の標高を後ろに追加
                             break
                     else:
                         continue
@@ -208,14 +206,66 @@ def main():
                 compPcNo=ft[4]
                 compPcElvs=ft[5]
                 peakCandidate2peakSw = True if ft[3] > 1 else False
-            else:   # 子・孫の時
-                # この辺にコルの座標を求める処理を入れたい
-                # 子vs孫のケースは複雑な地形をしているため、おそらく座標を求めるのは無理
-                # 子vs子のケースに絞って接点座標を求める処理を後で追加予定
-                if peakCandidate2peakSw:    # 親の子孫にピークが2つ以上ある時
-                    if compPcNo!=ft[4]:     # 親の持つピーク候補の番号と違う時
-                        print("peakCandidatesのindexと標高をチェックして一致していればpeakCandidatesからpop()")
-                        print("標高-現在の標高がminimumProminence以上あればピーク・コルリストにappend()")
+                if peakCandidate2peakSw:
+                    findColFb = 0   # コルを探す時に前の子と比較するか後ろの子と比較するかのフラグを初期化
+                    withoutGranChild=[]
+                    parentNo=int(ft[1])/10000
+                    for oc in familyTree:   # 孫を覗いた家系図作成
+                        if int(int(oc[1])/10000) == parentNo and int(oc[1])%100 == 0:
+                            withoutGranChild.append(oc)
+                    for oc in withoutGranChild:
+                        print(f"withoutGranChild:{el} {oc}")
+            else:   # 親以外
+                if not peakCandidate2peakSw:    # 親にピークが2つ以上ある時だけ
+                    continue
+                if int(ft[1])%100 != 0: # 子だけが対象
+                    continue
+                if findColFb==0 and ft[3]>0:
+                    if ft[4]==compPcNo: # 先に親と同じピーク候補が来たかどうか
+                        findColFb=-1    # 前にいれば前の子と比較する
+                    else:
+                        findColFb=1     # 後ろにいれば後ろの子と比較する
+                if ft[3]!=0 and ft[4]!=compPcNo:     # 親の持つピーク候補の番号と違う時
+                    # コルの座標を求める
+                    colList=[]
+                    for wogci,wogc in enumerate(withoutGranChild):    # 子だけの家系図を舐めて
+                        if wogc[0]!=ft[0]:    # 先ずは自分の位置を確認
+                            continue
+                        # 比較予定の子が同じピーク候補だったら、そちらの子に任せる
+                        if withoutGranChild[wogci+findColFb][4] == oc[4]:
+                            continue
+                        # 座標の接点を探す
+                        for ct in contours[wogc[0]]:
+                            for compCt in contours[withoutGranChild[wogci+findColFb][0]]:
+                                if ct[0][0] == compCt[0][0] and ct[0][1] == compCt[0][1]:
+                                    print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                    colList.append((ct[0][0],ct[0][1]))
+                                    break
+                            else:
+                                continue
+                            break
+                        else:
+                            print("col not found... try parent check")
+                            # もしかしてこっちが主流か？
+                            # 親の輪郭線にしか存在しない座標がある。
+                            # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
+                            for ct in contours[withoutGranChild[0][0]]:
+                                if elevs[ct[0][1]][ct[0][0]] == el:
+                                    print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                    colList.append((ct[0][0],ct[0][1]))
+                    colSet=set(colList) # 重複排除
+                    colList=list(colSet)
+                    if len(colList)!=1:
+#                        print(f"contours:{contours}")
+                        print(f"{el} hierarchy:{hierarchy}")
+                        for i,ft in enumerate(familyTree):
+                            print(f"{el} familyTree:{i} {ft}")
+                        print(f"{el} peakNo:{ft[4]} colList:{colList}")
+                        assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
+                    print(f"{el} peakNo:{ft[4]} colList:{colList}")
+
+                    print("peakCandidatesのindexと標高をチェックして一致していればpeakCandidatesからpop()")
+                    print("標高-現在の標高がminimumProminence以上あればピーク・コルリストにappend()")
 
 ## 取得した標高以上の標高を持つ座標を取得
 #    with ProcessPoolExecutor(max_workers=3) as executor: # max_workersは取り敢えずpythonにお任せ
