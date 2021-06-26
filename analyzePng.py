@@ -18,12 +18,8 @@ filter_size=16
 # 一辺を2分割した128くらいで良いと思うが、一応32をデフォルト値としておく。
 # テスト時は16で実施。
 #
-def getElevsPoints(elvs):
-    elevs=png2elevs()
-    return elvs,list(zip(*np.where(elevs>=elvs)))
-#
-def png2elevs():
-    img = cv2.imread("tile/tile.png")
+def png2elevs(file):
+    img = cv2.imread(file)
     # RGBから標高地を計算: x = 2**16R + 2**8G + B
     # openCVではGBRの順番になるので注意
     elevs0=img[:, :, 2].copy()*np.power(2,16)+img[:, :, 1].copy()*np.power(2,8)+img[:, :, 0].copy()
@@ -43,10 +39,10 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main():
+def main(file="tile/tile.png", verbose=True, debug=False):
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
-    elevs=png2elevs()
+    elevs=png2elevs(file)
     print(elevs.shape)
 # ピーク(候補)の一覧作成
     peakCandidates=[]
@@ -82,6 +78,9 @@ def main():
         # ピーク(候補)が残り1つになったら標高の1番低い所まで飛ばして良い
         if len(peakCandidates)==1 and el > elvslist[-1]:
             continue
+        debug = True if el==2674.02 else False
+        if verbose:
+            print(f"analyzing elevation {el} m")
         img=np.uint8(np.where(elevs>=el,255,0))
         # 輪郭を抽出する。最初はベタ塗りの画像から輪郭だけ抽出したいので
         # 階層問わず(cv2.RETR_LIST)輪郭のみのメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
@@ -98,7 +97,8 @@ def main():
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-#        print(hierarchy)
+        if debug:
+            print(hierarchy)
 #        contimg=np.zeros(img.shape)
 #        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
 #        cv2.imwrite(f"test/{el}.png",contimg)
@@ -106,71 +106,122 @@ def main():
 #            contimg=np.zeros(img.shape)
 #            cv2.drawContours(contimg, contours, i, 255, thickness=1)
 #            cv2.imwrite(f"test/{el}-{i}.png",contimg)
+        # 先ずは何世代までいるか確認
+        nextHrrchy=0
+        genCnt=0
+        for hrrchy in hierarchy[0]:
+            if hrrchy[2]== -1:  # 子供がいないのが対象
+                genCntt=1
+                nextHrrchy=hrrchy
+                while nextHrrchy[3] != -1:
+                    genCntt+=1
+                    currentHrrchy=nextHrrchy
+                    nextHrrchy=hierarchy[0][currentHrrchy[3]]
+                if genCnt < genCntt:
+                    genCnt=genCntt
+        #親世代だけだったら子供が出てくるまで飛ばす
+        if debug:
+            print(f"{el} 世代階層:{genCnt}")
+        if genCnt==1:
+            continue
         # 家系図を作成
         familyTree=[]
         parentCnt=0
-        nextHrrchy=0
-        while nextHrrchy != -1:
-            parentCnt+=1
-            peakCnt=0
-            currentHrrchy=nextHrrchy
-            hrrchy=hierarchy[0][currentHrrchy]
-            if hrrchy[3]== -1:  # 親がいないのが親
-                if hrrchy[2] == -1: # 子がいなければおそらくピーク
+#        while nextHrrchy != -1:
+        for hi,hrrchy in enumerate(hierarchy[0]):
+            if hrrchy[3]== -1:  # 親だったら(親がいないのが親)
+                selfGeneration=1
+                parentCnt+=1
+                childCnt=0
+                gChildCnt=0
+                g2gChildCnt=0   # ひ孫用カウンタ
+                g3gChildCnt=0   # 玄孫用カウンタ
+                g4gChildCnt=0   # 来孫用カウンタ
+            else:   # 親以外
+                if hrrchy[1]==-1:   # 自分が長兄だったら
+                    # 親の番号から自分の世代を求める
+                    myPfNumber=int(familyTree[hrrchy[3]][1])
+                    if myPfNumber%(10**((genCnt-1)*2))==0:  # 自分の親が親世代なら
+                        selfGeneration=2
+                        childCnt+=1
+                    elif myPfNumber%(10**((genCnt-2)*2))==0:  # 自分の親が子世代なら
+                        selfGeneration=3
+                        gChildCnt+=1
+                    elif myPfNumber%(10**((genCnt-3)*2))==0:  # 自分の親が孫世代なら
+                        selfGeneration=4
+                        g2gChildCnt+=1
+                    elif myPfNumber%(10**((genCnt-4)*2))==0:  # 自分の親が玄孫世代なら
+                        selfGeneration=5
+                        g3gChildCnt+=1
+                    elif myPfNumber%(10**((genCnt-5)*2))==0:  # 自分の親が来孫世代なら
+                        selfGeneration=6
+                        g4gChildCnt+=1
+                    else:
+                        for i in range(len(contours)):
+                            contimg=np.zeros(img.shape)
+                            cv2.drawContours(contimg, contours, i, 255, thickness=1)
+                            cv2.imwrite(f"test/{el}-{i}.png",contimg)
+                        contimg=np.zeros(img.shape)
+                        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+                        cv2.imwrite(f"test/{el}.png",contimg)
+                        print(f"{el} hierarchy:{hierarchy}")
+                        print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
+                        print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
+                        for i,pft in enumerate(familyTree):
+                            print(f"{el} familyTree:{i} {pft}")
+                        assert False, "昆孫以降は想定外。内容要確認"
+                else:
+                    # 上の兄弟の番号から自分の世代を求める
+                    myBfNumber=int(familyTree[hrrchy[1]][1])
+                    if myBfNumber%(10**((genCnt-2)*2))==0:  # 自分の兄が子世代なら
+                        selfGeneration=2
+                        childCnt+=1
+                    elif myBfNumber%(10**((genCnt-3)*2))==0:  # 自分の兄が孫世代なら
+                        selfGeneration=3
+                        gChildCnt+=1
+                    elif myBfNumber%(10**((genCnt-4)*2))==0:  # 自分の兄が孫世代なら
+                        selfGeneration=4
+                        g2gChildCnt+=1
+                    elif myBfNumber%(10**((genCnt-5)*2))==0:  # 自分の兄が玄孫世代なら
+                        selfGeneration=5
+                        g3gChildCnt+=1
+                    elif myBfNumber%(10**((genCnt-6)*2))==0:  # 自分の兄が来孫世代なら
+                        selfGeneration=6
+                        g4gChildCnt+=1
+                # 自分より下の世代のカウンタクリア
+                if selfGeneration<=2:
+                    gChildCnt=0
+                if selfGeneration<=3:
+                    g2gChildCnt=0   # ひ孫用カウンタ
+                if selfGeneration<=4:
+                    g3gChildCnt=0   # 玄孫用カウンタ
+                if selfGeneration<=5:
+                    g4gChildCnt=0   # 来孫用カウンタ
+            # 簡単な説明を追加
+            if selfGeneration%2 != 0:   # 奇数世代(親、孫、玄孫)
+                if hrrchy[2] == -1: # 子供がいなければおそらくピーク
                     hclass="maybe peak"
                 else:
-                    hclass="contour outside"    # 子がいれば等高線の外枠
-                familyTree.append([currentHrrchy,f"{parentCnt*10000:0=7}",hclass])
-                if hrrchy[2] != -1: # 子がいれば子に入る
-                    childCnt=0
-                    nextHrrchy=hrrchy[2]
-                    while nextHrrchy != -1:
-                        childCnt+=1
-                        currentHrrchy=nextHrrchy
-                        hrrchy=hierarchy[0][currentHrrchy]
-                        childNo=int(familyTree[hrrchy[3]][1])+childCnt*100
-                        if hrrchy[2] == -1: # 孫がいなければ通常の等高線内枠
-                            hclass="contour inside"
-                        else:
-                            hclass="contour inside (maybe grandchild is a peak)"    # 孫がいればピークを含む等高線の内枠(多分)
-                        familyTree.append([currentHrrchy,f"{childNo:0=7}",hclass])
-                        if hrrchy[2] != -1: # 孫がいれば孫に入る
-                            grandChildCnt=0
-                            nextHrrchy=hrrchy[2]
-                            while nextHrrchy != -1:
-                                grandChildCnt+=1
-                                currentHrrchy=nextHrrchy
-                                hrrchy=hierarchy[0][currentHrrchy]
-                                granChildNo=int(familyTree[hrrchy[3]][1])+grandChildCnt
-                                if hrrchy[2] == -1: # ひ孫がいなければ多分ピーク
-                                    hclass="maybe peak"
-                                else:
-                                    for i in range(len(contours)):
-                                        contimg=np.zeros(img.shape)
-                                        cv2.drawContours(contimg, contours, i, 255, thickness=1)
-                                        cv2.imwrite(f"test/{el}-{i}.png",contimg)
-                                    contimg=np.zeros(img.shape)
-                                    cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-                                    cv2.imwrite(f"test/{el}.png",contimg)
-                                    print(f"{el} hierarchy:{hierarchy}")
-                                    print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
-                                    print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
-                                    for i,pft in enumerate(familyTree):
-                                        print(f"{el} familyTree:{i} {pft}")
-                                    assert False, "ひ孫はひ孫は想定外。内容要確認"
-                                familyTree.append([currentHrrchy,f"{granChildNo:0=7}",hclass])
-                                nextHrrchy=hrrchy[0]
-                            else:
-                                hrrchy=hierarchy[0][hrrchy[3]]  # 子に戻る
-                        nextHrrchy=hrrchy[0]
-                    else:
-                        hrrchy=hierarchy[0][hrrchy[3]]  # 親に戻る
-            nextHrrchy=hrrchy[0]
-#        for ft in familyTree:
-#            print(el,ft)
+                    hclass="contour outside"    # 子供がいれば等高線の外枠
+            else:   # 偶数世代(子、曾孫、来孫)
+                if hrrchy[2] == -1: # 子供がいなければ通常の等高線内枠
+                    hclass="contour inside"
+                else:
+                    hclass="contour inside (maybe grandchild is a peak)"    # 子供がいればピークを含む等高線の内枠(多分)
+            # 番号を計算
+            fNumber=str(int(parentCnt*(10**((genCnt-1)*2))+\
+                    childCnt*(10**((genCnt-2)*2))+\
+                    gChildCnt*(10**((genCnt-3)*2))+\
+                    g2gChildCnt*(10**((genCnt-4)*2))+\
+                    g3gChildCnt*(10**((genCnt-5)*2))+\
+                    g4gChildCnt*(10**((genCnt-6)*2))))
+            familyTree.append([hi,fNumber.zfill((genCnt*2)+1),hclass])
+        if debug:
+            for ft in familyTree:
+                print(el,ft)
         # 家系図にピーク候補の情報追加
         for ft in familyTree:
-            if int(ft[1])%10000 == 0: # 親の時
+            if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
                 if ft[0]==0:
                     pass
                 else:
@@ -189,13 +240,14 @@ def main():
                         if pc[0]<el: # 現在の標高より低いピークは対象外
                             continue
                         if compPc==pc[1]:    # 輪郭線の座標とピーク候補の座標が一致
-                            print(f"found peak candidate! {i}　({iii} {pc})")
-                            if int(familyTree[i][1])%100 == 0: # 子だったら輪郭線内側
+                            if debug:
+                                print(f"found peak candidate! {i}　({iii} {pc})")
+                            if int(familyTree[i][1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
                                 familyTree[i][2]="contour inside incld/peak"
                             else:   # 孫だったらピーク
                                 familyTree[i][2]="peak"
                                 # 自分の親(=子)の情報を書き換える
-                                familyTree[i-1][2]="contour inside (grandchild is a peak)"
+                                familyTree[i-1][2]="contour inside (my child is a peak)"
                                 familyTree[i-1][3]=1    # ピーク候補の数
                                 familyTree[i-1][4]=iii  # ピーク候補の何番目か
                                 familyTree[i-1][5]=pc[0]    # ピーク候補の標高
@@ -219,27 +271,29 @@ def main():
             # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
             familyTree[parentIdx].append(min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1)
             familyTree[parentIdx].append(peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1)
-        for ft in familyTree:
-            print(el,ft)
+        if debug:
+            for ft in familyTree:
+                print(el,ft)
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
         for ft in familyTree:
-            if int(ft[1])%10000 == 0: # 親の時
+            if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
                 compPcId=ft[4]
                 compPcElvs=ft[5]
                 peakCandidate2peakSw = True if ft[3] > 1 else False
                 if peakCandidate2peakSw:
                     findColFb = 0   # コルを探す時に前の子と比較するか後ろの子と比較するかのフラグを初期化
-                    withoutGranChild=[]
-                    parentNo=int(ft[1])/10000
-                    for oc in familyTree:   # 孫を覗いた家系図作成
-                        if int(int(oc[1])/10000) == parentNo and int(oc[1])%100 == 0:
-                            withoutGranChild.append(oc)
-                    for oc in withoutGranChild:
-                        print(f"withoutGranChild:{el} {oc}")
+                    overChild=[]
+                    parentNo=int(ft[1])//(10**((genCnt-1)*2))
+                    for oc in familyTree:   # 孫以降を除いた家系図作成
+                        if int(oc[1])//(10**((genCnt-1)*2)) == parentNo and int(oc[1])%(10**((genCnt-2)*2)) == 0:
+                            overChild.append(oc)
+                    if debug:
+                        for oc in overChild:
+                            print(f"overChild:{el} {oc}")
             else:   # 親以外
                 if not peakCandidate2peakSw:    # 親にピークが2つ以上ある時だけ
                     continue
-                if int(ft[1])%100 != 0: # 子だけが対象
+                if int(ft[1])%(10**((genCnt-2)*2)) != 0: # 子だけが対象
                     continue
                 if findColFb==0 and ft[3]>0:
                     if ft[4]==compPcId: # 先に親と同じピーク候補が来たかどうか
@@ -249,31 +303,35 @@ def main():
                 if ft[3]!=0 and ft[4]!=compPcId:     # 親の持つピーク候補の番号と違う時
                     # コルの座標を求める
                     colList=[]
-                    for wogci,wogc in enumerate(withoutGranChild):    # 子だけの家系図を舐めて
+                    for wogci,wogc in enumerate(overChild):    # 子だけの家系図を舐めて
                         if wogc[0]!=ft[0]:    # 先ずは自分の位置を確認
                             continue
                         # 比較予定の子が同じピーク候補だったら、そちらの子に任せる
-                        if withoutGranChild[wogci+findColFb][4] == ft[4]:
+                        if overChild[wogci+findColFb][4] == ft[4]:
                             break
-                        print(f"childId:{ft[0]} try to find col for peakCandidatesId:{ft[4]}")
+                        if debug:
+                            print(f"childId:{ft[0]} try to find col for peakCandidatesId:{ft[4]}")
                         # 座標の接点を探す
                         for ct in contours[wogc[0]]:
-                            for compCt in contours[withoutGranChild[wogci+findColFb][0]]:
+                            for compCt in contours[overChild[wogci+findColFb][0]]:
                                 if ct[0][0] == compCt[0][0] and ct[0][1] == compCt[0][1]:
-                                    print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                    if debug:
+                                        print(f"found col! ({ct[0][0]} {ct[0][1]})")
                                     colList.append((ct[0][0],ct[0][1]))
                                     break
                             else:
                                 continue
                             break
                         else:
-                            print("col not found... try parent check")
+                            if debug:
+                                print("col not found... try parent check")
                             # もしかしてこっちが主流か？
                             # 親の輪郭線にしか存在しない座標がある。
                             # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
-                            for ct in contours[withoutGranChild[0][0]]:
+                            for ct in contours[overChild[0][0]]:
                                 if elevs[ct[0][1]][ct[0][0]] == el:
-                                    print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                    if debug:
+                                        print(f"found col! ({ct[0][0]} {ct[0][1]})")
                                     colList.append((ct[0][0],ct[0][1]))
                     else:
                         if len(colList)>1:  # コル座標が複数ある時
@@ -325,7 +383,7 @@ def main():
                                             holdcli=ncli
                                             holddist=dist
                                 colList=[]
-                                colList.append(colList[holdcli])
+                                colList.append(newColList[holdcli])
                         # ここまでやって1つにならないケースはコルが見つからない時。処理を中止させて内容要確認
                         if len(colList)!=1:
                             for i in range(len(contours)):
@@ -343,7 +401,8 @@ def main():
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
                             assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
-                        print(f"{el} peakId:{ft[4]} colList:{colList}")
+                        if debug:
+                            print(f"{el} peakId:{ft[4]} colList:{colList}")
                         # ピーク候補の更新
                         for pci,pc in enumerate(peakCandidates):
                             if ft[4]==pci and ft[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
@@ -351,12 +410,30 @@ def main():
                                 # ピークとコルの標高差がminimumProminence以上あればpeakColListに追加
                                 if popPc[0]-el >= minimumProminence:
                                     print(f"found peak! peak:{popPc} col:{(el,colList[0])}")
-                                    peakColList.append(popPc,(el,colList[0]))
-                        for pci,pc in enumerate(peakCandidates):
-                            print(f"{el} new peakCandidates:{pci} {pc}")
+                                    peakColList.append((popPc,(el,colList[0])))
+                                # ピーク候補の更新が終わったらスイッチを元に戻す
+                                peakCandidate2peakSw=False
+                        if debug:
+                            for pci,pc in enumerate(peakCandidates):
+                                print(f"{el} new peakCandidates:{pci} {pc}")
     # 最後、1番標高の高いピークをpeakColListに登録する
     colList=[]
     colList.append(list(zip(*np.where(elevs==elevs.min()))))
+    # 複数あった時は一番近い座標を採用
+    if len(colList)>1:
+        pcCrd=peakCandidates[0][1]
+        for cli,cl in enumerate(colList):
+            dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)
+            if cli==0:
+                holdcli=cli
+                holddist=dist
+            else:
+                if holddist > dist:
+                    holdcli=cli
+                    holddist=dist
+        else:
+            newColList.append(colList[holdcli])
+        colList=newColList
     if len(colList)!=1:
         print(colList)
         assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
