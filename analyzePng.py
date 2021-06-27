@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
 minimumProminence=150   # プロミネンス(ピークとコルの標高差)最小値
-filter_size=16
+filter_size=64
 # イメージの中をfilter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
 # 標高タイルは一辺が256ピクセルで、レベル15だと1つのタイルの中にピークはせいぜい1〜2座だと思うので、
 # 一辺を2分割した128くらいで良いと思うが、一応32をデフォルト値としておく。
@@ -79,7 +79,7 @@ def main(file="tile/tile.png", verbose=False, debug=False):
         # ピーク(候補)が残り1つになったら標高の1番低い所まで飛ばして良い
         if len(peakCandidates)==1 and el > elvslist[-1]:
             continue
-        debug = True if el==2674.02 else False
+#        debug = True if el==2674.02 else False
         if verbose:
             print(f"analyzing elevation {el} m")
         img=np.uint8(np.where(elevs>=el,255,0))
@@ -248,10 +248,10 @@ def main(file="tile/tile.png", verbose=False, debug=False):
                             else:   # 孫だったらピーク
                                 familyTree[i][2]="peak"
                                 # 自分の親(=子)の情報を書き換える
-                                familyTree[i-1][2]="contour inside (my child is a peak)"
-                                familyTree[i-1][3]=1    # ピーク候補の数
-                                familyTree[i-1][4]=iii  # ピーク候補の何番目か
-                                familyTree[i-1][5]=pc[0]    # ピーク候補の標高
+                                familyTree[hierarchy[0][i][3]][2]="contour inside (my child is a peak)"
+                                familyTree[hierarchy[0][i][3]][3]=1    # ピーク候補の数
+                                familyTree[hierarchy[0][i][3]][4]=iii  # ピーク候補の何番目か
+                                familyTree[hierarchy[0][i][3]][5]=pc[0]    # ピーク候補の標高
                             familyTree[i].append(1)     # ピーク候補の数(1)を後ろに追加
                             familyTree[i].append(iii)   # ピーク候補の何番目かを後ろに追加
                             familyTree[i].append(pc[0]) # ピーク候補の標高を後ろに追加
@@ -272,6 +272,14 @@ def main(file="tile/tile.png", verbose=False, debug=False):
             # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
             familyTree[parentIdx].append(min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1)
             familyTree[parentIdx].append(peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1)
+# (2804.51, (183, 420))
+#        for ft in familyTree:
+#            if ft[5]==2804.51:
+#                 debug=True
+#                 break
+#        else:
+#            debug=False
+#
         if debug:
             for ft in familyTree:
                 print(el,ft)
@@ -449,7 +457,8 @@ def main(file="tile/tile.png", verbose=False, debug=False):
         print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
     else:
         print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
-    peakColProminence.insert(0,(popPc,(elevs.min(),colList[0][0]),prominence))
+    peakColProminence.append((popPc,(elevs.min(),colList[0][0]),prominence))
+    peakColProminence.sort(key=itemgetter(0,1,2), reverse=True)
     for pcli,pcl in enumerate(peakColProminence):
         print(f"peakColProminence:{pcli} {pcl}")
 
