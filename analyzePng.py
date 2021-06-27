@@ -5,6 +5,7 @@ import os
 #import io
 import collections
 import math
+from decimal import Decimal
 import cv2
 from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
@@ -39,7 +40,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main(file="tile/tile.png", verbose=True, debug=False):
+def main(file="tile/tile.png", verbose=False, debug=False):
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(file)
@@ -70,7 +71,7 @@ def main(file="tile/tile.png", verbose=True, debug=False):
     print(elevs.max(),elevs.min())
     elvslist=list(np.unique(elevs))[::-1]
     print(len(elvslist))
-    peakColList=[]
+    peakColProminence=[]
     for el in elvslist:
         # ピーク(候補)の2番目まで飛ばして良い
         if len(peakCandidates)>1 and el > peakCandidates[1][0]:
@@ -407,16 +408,20 @@ def main(file="tile/tile.png", verbose=True, debug=False):
                         for pci,pc in enumerate(peakCandidates):
                             if ft[4]==pci and ft[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
                                 popPc=peakCandidates.pop(pci)   # ピーク候補から削除
-                                # ピークとコルの標高差がminimumProminence以上あればpeakColListに追加
-                                if popPc[0]-el >= minimumProminence:
-                                    print(f"found peak! peak:{popPc} col:{(el,colList[0])}")
-                                    peakColList.append((popPc,(el,colList[0])))
+                                # peakColProminenceに追加
+                                prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
+                                if verbose:
+                                    if prominence >= minimumProminence:
+                                        print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
+                                    else:
+                                        print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
+                                peakColProminence.append((popPc,(el,colList[0]),prominence))
                                 # ピーク候補の更新が終わったらスイッチを元に戻す
                                 peakCandidate2peakSw=False
                         if debug:
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} new peakCandidates:{pci} {pc}")
-    # 最後、1番標高の高いピークをpeakColListに登録する
+    # 最後、1番標高の高いピークをpeakColProminenceに登録する
     colList=[]
     colList.append(list(zip(*np.where(elevs==elevs.min()))))
     # 複数あった時は一番近い座標を採用
@@ -438,12 +443,15 @@ def main(file="tile/tile.png", verbose=True, debug=False):
         print(colList)
         assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
     popPc=peakCandidates.pop(0)   # ピーク候補から削除
-    # ピークとコルの標高差がminimumProminence以上あればpeakColListに追加
-    if popPc[0]-elevs.min() >= minimumProminence:
-        print(f"found peak! peak:{popPc} col:{(elevs.min(),colList[0][0])}")
-        peakColList.append((popPc,(elevs.min(),colList[0][0])))
-    for pcli,pcl in enumerate(peakColList):
-        print(f"peakColList:{pcli} {pcl}")
+    # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
+    prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
+    if prominence >= minimumProminence:
+        print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
+    else:
+        print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
+    peakColProminence.insert(0,(popPc,(elevs.min(),colList[0][0]),prominence))
+    for pcli,pcl in enumerate(peakColProminence):
+        print(f"peakColProminence:{pcli} {pcl}")
 
 # 取り敢えず単純に等高線を引いてみる
     xx=np.linspace(0,elevs.shape[1]+1,elevs.shape[1])
