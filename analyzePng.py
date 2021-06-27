@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
 minimumProminence=150   # プロミネンス(ピークとコルの標高差)最小値
-filter_size=64
+filter_size=32
 # イメージの中をfilter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
 # 標高タイルは一辺が256ピクセルで、レベル15だと1つのタイルの中にピークはせいぜい1〜2座だと思うので、
 # 一辺を2分割した128くらいで良いと思うが、一応32をデフォルト値としておく。
@@ -286,149 +286,139 @@ def main(file="tile/tile.png", verbose=False, debug=False):
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
         for ft in familyTree:
             if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
-                compPcId=ft[4]
-                compPcElvs=ft[5]
                 peakCandidate2peakSw = True if ft[3] > 1 else False
                 if peakCandidate2peakSw:
                     findColFb = 0   # コルを探す時に前の子と比較するか後ろの子と比較するかのフラグを初期化
                     overChild=[]
                     parentNo=int(ft[1])//(10**((genCnt-1)*2))
-                    for oc in familyTree:   # 孫以降を除いた家系図作成
+                    for oc in familyTree:   # 自分と子だけの家系図作成
                         if int(oc[1])//(10**((genCnt-1)*2)) == parentNo and int(oc[1])%(10**((genCnt-2)*2)) == 0:
                             overChild.append(oc)
                     if debug:
                         for oc in overChild:
                             print(f"overChild:{el} {oc}")
-            else:   # 親以外
-                if not peakCandidate2peakSw:    # 親にピークが2つ以上ある時だけ
-                    continue
-                if int(ft[1])%(10**((genCnt-2)*2)) != 0: # 子だけが対象
-                    continue
-                if findColFb==0 and ft[3]>0:
-                    if ft[4]==compPcId: # 先に親と同じピーク候補が来たかどうか
-                        findColFb=-1    # 前にいれば前の子と比較する
-                    else:
-                        findColFb=1     # 後ろにいれば後ろの子と比較する
-                if ft[3]!=0 and ft[4]!=compPcId:     # 親の持つピーク候補の番号と違う時
-                    # コルの座標を求める
-                    colList=[]
-                    for wogci,wogc in enumerate(overChild):    # 子だけの家系図を舐めて
-                        if wogc[0]!=ft[0]:    # 先ずは自分の位置を確認
-                            continue
-                        # 比較予定の子が同じピーク候補だったら、そちらの子に任せる
-                        if overChild[wogci+findColFb][4] == ft[4]:
-                            break
-                        if debug:
-                            print(f"childId:{ft[0]} try to find col for peakCandidatesId:{ft[4]}")
-                        # 座標の接点を探す
-                        for ct in contours[wogc[0]]:
-                            for compCt in contours[overChild[wogci+findColFb][0]]:
-                                if ct[0][0] == compCt[0][0] and ct[0][1] == compCt[0][1]:
-                                    if debug:
-                                        print(f"found col! ({ct[0][0]} {ct[0][1]})")
-                                    colList.append((ct[0][0],ct[0][1]))
-                                    break
-                            else:
-                                continue
-                            break
+                    for oci,oc in enumerate(overChild):    # 自分と子だけの家系図を舐める
+                        if oci==0:
+                            compPcId=oc[4]
+                            compPcElvs=oc[5]
                         else:
-                            if debug:
-                                print("col not found... try parent check")
-                            # もしかしてこっちが主流か？
-                            # 親の輪郭線にしか存在しない座標がある。
-                            # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
-                            for ct in contours[overChild[0][0]]:
-                                if elevs[ct[0][1]][ct[0][0]] == el:
-                                    if debug:
-                                        print(f"found col! ({ct[0][0]} {ct[0][1]})")
-                                    colList.append((ct[0][0],ct[0][1]))
-                    else:
-                        if len(colList)>1:  # コル座標が複数ある時
-                            newColList=[]
-                            # 同じ座標が複数出てきた時はそこが接点なので採用する
-                            for cl in collections.Counter(colList).most_common():
-                                if cl[1]>1:
-                                    newColList.append(cl[0])
-                            if len(newColList)>0:
-                                colList=newColList
-                        colSet=set(colList) # 重複排除
-                        colList=list(colSet)
-                        if len(colList)>1:  # コル座標が複数ある時
-                            # 通常はピークとピークの間にあると思うので、2つのピーク座標にあるコルを採用。ちょっと雑
-                            # この辺りは実際にやってみながら修正していく
-                            scopeList=[]
-                            compPcCrd=peakCandidates[compPcId][1]
-                            scopeList.append(compPcCrd)
-                            pcCrd=peakCandidates[ft[4]][1]
-                            scopeList.append(pcCrd)
-                            scopeList.sort()
-                            newColList=[]
-                            for cl in colList:
-                                if scopeList[0]<=cl and cl<=scopeList[1]:
-                                    newColList.append(cl)
-                            newColList.sort()
-                            if len(newColList)==0:  # ピークとピークの間にないケースは近い方を採用
-                                for cli,cl in enumerate(colList):
-                                    dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)
-                                    if cli==0:
-                                        holdcli=cli
-                                        holddist=dist
-                                    else:
-                                        if holddist > dist:
-                                            holdcli=cli
-                                            holddist=dist
-                                newColList.append(colList[holdcli])
-                                colList=newColList
-                            elif len(newColList)==1:
-                                colList=newColList
-                            else:   # これでも複数あるケースがあるので、今のピークに近い方を採用する
-                                for ncli,ncl in enumerate(newColList):
-                                    dist=math.sqrt((pcCrd[0]-ncl[0])**2+(pcCrd[1]-ncl[1])**2)
-                                    if ncli==0:
-                                        holdcli=ncli
-                                        holddist=dist
-                                    else:
-                                        if holddist > dist:
-                                            holdcli=ncli
-                                            holddist=dist
+                            if findColFb==0 and oc[3]>0:
+                                if oc[4]==compPcId: # 先に親と同じピーク候補が来たかどうか
+                                    findColFb=-1    # 前にいれば前の子と比較する
+                                else:
+                                    findColFb=1     # 後ろにいれば後ろの子と比較する
+                            if oc[3]!=0 and oc[4]!=compPcId:    # 親の持つピーク候補の番号と違う時
+                                # コルの座標を求める
                                 colList=[]
-                                colList.append(newColList[holdcli])
-                        # ここまでやって1つにならないケースはコルが見つからない時。処理を中止させて内容要確認
-                        if len(colList)!=1:
-                            for i in range(len(contours)):
-                                contimg=np.zeros(img.shape)
-                                cv2.drawContours(contimg, contours, i, 255, thickness=1)
-                                cv2.imwrite(f"test/{el}-{i}.png",contimg)
-                            contimg=np.zeros(img.shape)
-                            cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-                            cv2.imwrite(f"test/{el}.png",contimg)
-                            #print(f"contours:{contours}")
-                            print(f"{el} hierarchy:{hierarchy}")
-                            for i,pft in enumerate(familyTree):
-                                print(f"{el} familyTree:{i} {pft}")
-                            print(f"{el} peakId:{ft[4]} colList:{colList}")
-                            for pci,pc in enumerate(peakCandidates):
-                                print(f"{el} peakCandidates:{pci} {pc}")
-                            assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
-                        if debug:
-                            print(f"{el} peakId:{ft[4]} colList:{colList}")
-                        # ピーク候補の更新
-                        for pci,pc in enumerate(peakCandidates):
-                            if ft[4]==pci and ft[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
-                                popPc=peakCandidates.pop(pci)   # ピーク候補から削除
-                                # peakColProminenceに追加
-                                prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
-                                if verbose:
-                                    if prominence >= minimumProminence:
-                                        print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
+                                if debug:
+                                    print(f"childId:{oc[0]} try to find col for peakCandidatesId:{oc[4]}")
+                                # 座標の接点を探す
+                                for ct in contours[oc[0]]:
+                                    for compCt in contours[overChild[oci+findColFb][0]]:
+                                        if ct[0][0] == compCt[0][0] and ct[0][1] == compCt[0][1]:
+                                            if debug:
+                                                print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                            colList.append((ct[0][0],ct[0][1]))
+                                            break
                                     else:
-                                        print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
-                                peakColProminence.append((popPc,(el,colList[0]),prominence))
-                                # ピーク候補の更新が終わったらスイッチを元に戻す
-                                peakCandidate2peakSw=False
-                        if debug:
-                            for pci,pc in enumerate(peakCandidates):
-                                print(f"{el} new peakCandidates:{pci} {pc}")
+                                        continue
+                                    break
+                                else:
+                                    if debug:
+                                        print("col not found... try parent check")
+                                    # もしかしてこっちが主流か？
+                                    # 親の輪郭線にしか存在しない座標がある。
+                                    # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
+                                    for ct in contours[overChild[0][0]]:
+                                        if elevs[ct[0][1]][ct[0][0]] == el:
+                                            if debug:
+                                                print(f"found col! ({ct[0][0]} {ct[0][1]})")
+                                            colList.append((ct[0][0],ct[0][1]))
+
+                                if len(colList)>1:  # コル座標が複数ある時
+                                    newColList=[]
+                                    # 同じ座標が複数出てきた時はそこが接点なので採用する
+                                    for cl in collections.Counter(colList).most_common():
+                                        if cl[1]>1:
+                                            newColList.append(cl[0])
+                                    if len(newColList)>0:
+                                        colList=newColList
+                                    colSet=set(colList) # 重複排除
+                                    colList=list(colSet)
+                                if len(colList)>1:  # コル座標が複数ある時
+                                    # 通常はピークとピークの間にあると思うので、2つのピーク座標にあるコルを採用。ちょっと雑
+                                    # この辺りは実際にやってみながら修正していく
+                                    scopeList=[]
+                                    compPcCrd=peakCandidates[compPcId][1]
+                                    scopeList.append(compPcCrd)
+                                    pcCrd=peakCandidates[oc[4]][1]
+                                    scopeList.append(pcCrd)
+                                    scopeList.sort()
+                                    newColList=[]
+                                    for cl in colList:
+                                        if scopeList[0]<=cl and cl<=scopeList[1]:
+                                            newColList.append(cl)
+                                    newColList.sort()
+                                    if len(newColList)==0:  # ピークとピークの間にないケースは近い方を採用
+                                        for cli,cl in enumerate(colList):
+                                            dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)
+                                            if cli==0:
+                                                holdcli=cli
+                                                holddist=dist
+                                            elif holddist > dist:
+                                                holdcli=cli
+                                                holddist=dist
+                                        newColList.append(colList[holdcli])
+                                        colList=newColList
+                                    elif len(newColList)==1:
+                                        colList=newColList
+                                    else:   # これでも複数あるケースがあるので、今のピークに近い方を採用する
+                                        for ncli,ncl in enumerate(newColList):
+                                            dist=math.sqrt((pcCrd[0]-ncl[0])**2+(pcCrd[1]-ncl[1])**2)
+                                            if ncli==0:
+                                                holdcli=ncli
+                                                holddist=dist
+                                            elif holddist > dist:
+                                                holdcli=ncli
+                                                holddist=dist
+                                        colList=[]
+                                        colList.append(newColList[holdcli])
+                                # ここまでやって1つにならないケースはコルが見つからない時。処理を中止させて内容要確認
+                                if len(colList)!=1:
+                                    for i in range(len(contours)):
+                                        contimg=np.zeros(img.shape)
+                                        cv2.drawContours(contimg, contours, i, 255, thickness=1)
+                                        cv2.imwrite(f"test/{el}-{i}.png",contimg)
+                                    contimg=np.zeros(img.shape)
+                                    cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+                                    cv2.imwrite(f"test/{el}.png",contimg)
+                                    #print(f"contours:{contours}")
+                                    print(f"{el} hierarchy:{hierarchy}")
+                                    for i,pft in enumerate(familyTree):
+                                        print(f"{el} familyTree:{i} {pft}")
+                                    print(f"{el} peakId:{oc[4]} colList:{colList}")
+                                    for pci,pc in enumerate(peakCandidates):
+                                        print(f"{el} peakCandidates:{pci} {pc}")
+                                    assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
+                                if debug:
+                                    print(f"{el} peakId:{oc[4]} colList:{colList}")
+                                # ピーク候補の更新
+                                for pci,pc in enumerate(peakCandidates):
+                                    if oc[4]==pci and oc[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
+                                        popPc=peakCandidates.pop(pci)   # ピーク候補から削除
+                                        # peakColProminenceに追加
+                                        prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
+                                        if verbose:
+                                            if prominence >= minimumProminence:
+                                                print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
+                                            else:
+                                                print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
+                                        peakColProminence.append((popPc,(el,colList[0]),prominence))
+                                        # ピーク候補の更新が終わったらスイッチを元に戻す
+                                        peakCandidate2peakSw=False
+                                if debug:
+                                    for pci,pc in enumerate(peakCandidates):
+                                        print(f"{el} new peakCandidates:{pci} {pc}")
     # 最後、1番標高の高いピークをpeakColProminenceに登録する
     colList=[]
     colList.append(list(zip(*np.where(elevs==elevs.min()))))
@@ -453,10 +443,11 @@ def main(file="tile/tile.png", verbose=False, debug=False):
     popPc=peakCandidates.pop(0)   # ピーク候補から削除
     # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
     prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
-    if prominence >= minimumProminence:
-        print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
-    else:
-        print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
+    if verbose:
+        if prominence >= minimumProminence:
+            print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
+        else:
+            print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
     peakColProminence.append((popPc,(elevs.min(),colList[0][0]),prominence))
     peakColProminence.sort(key=itemgetter(0,1,2), reverse=True)
     for pcli,pcl in enumerate(peakColProminence):
