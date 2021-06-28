@@ -33,9 +33,8 @@ def main():
     print(scope_tile.shape)
 #    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
-#    img_scope_tile.save("tile/{}-{}-{}_{}-{}-{}.png".format(dtlZoomLvl, tileX-m, tileY-m, dtlZoomLvl, tileX+m, tileY+m))
-    img_scope_tile.save("tile/tile.png".format(dtlZoomLvl, tileX-m, tileY-m, dtlZoomLvl, tileX+m, tileY+m))
-    print("{}: Finished @{}".format(args[0],datetime.datetime.now()))
+    img_scope_tile.save(f"tile/0000-00_{dtlZoomLvl}-{tileX-m}-{tileY-m}_{dtlZoomLvl}-{tileX+m}-{tileY+m}.png")
+    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     args = sys.argv

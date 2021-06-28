@@ -19,8 +19,8 @@ filter_size=32
 # 一辺を2分割した128くらいで良いと思うが、一応32をデフォルト値としておく。
 # テスト時は16で実施。
 #
-def png2elevs(file):
-    img = cv2.imread(file)
+def png2elevs(filePath):
+    img = cv2.imread(filePath)
     # RGBから標高地を計算: x = 2**16R + 2**8G + B
     # openCVではGBRの順番になるので注意
     elevs0=img[:, :, 2].copy()*np.power(2,16)+img[:, :, 1].copy()*np.power(2,8)+img[:, :, 0].copy()
@@ -40,10 +40,10 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main(file="tile/tile.png", verbose=False, debug=False):
+def main(filePath="tile/tile.png", verbose=False, debug=False):
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
-    elevs=png2elevs(file)
+    elevs=png2elevs(filePath)
     print(elevs.shape)
 # ピーク(候補)の一覧作成
     peakCandidates=[]
@@ -424,19 +424,47 @@ def main(file="tile/tile.png", verbose=False, debug=False):
     peakColProminence.sort(key=itemgetter(0,1,2), reverse=True)
     for pcli,pcl in enumerate(peakColProminence):
         print(f"peakColProminence:{pcli} {pcl}")
-
+    # 出来上がったpeakColProminenceをテキストに吐き出す
+    print("analysis completed")
+    os.makedirs("data" ,exist_ok=True)
+    with open(f"data/{os.path.splitext(os.path.basename(filePath))[0]}_pcp.txt", mode="w") as f:
+        for pcl in peakColProminence:
+            dat=f"{pcl[0]},{pcl[1]},{pcl[2]}\n"
+            f.write(dat)
+    print("generating elevation image")
 # 取り敢えず単純に等高線を引いてみる
-    xx=np.linspace(0,elevs.shape[1]+1,elevs.shape[1])
-    yy=np.linspace(0,elevs.shape[0]+1,elevs.shape[0])
-    levels=list(np.linspace(int(elevs.min()),int(elevs.max())+2,(int(elevs.max())-int(elevs.min())+1)))
-    elevs = np.flipud(elevs)
-
+#    xx=np.linspace(0,elevs.shape[1],elevs.shape[1])
+#    yy=np.linspace(0,elevs.shape[0],elevs.shape[0])
+#    levels=list(np.linspace(int(elevs.min()),int(elevs.max())+2,(int(elevs.max())-int(elevs.min())+1)))
+#    elevs = np.flipud(elevs)
+#
     fig, ax = plt.subplots()
-    ax.contour(xx, yy, elevs, levels=levels)
-#    plt.show()
+    fig.set_size_inches(16.53 * 2, 11.69 * 2)
+#
+    from matplotlib.colors import LightSource
+    import matplotlib.cm as cm
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    ls = LightSource(azdeg=180, altdeg=90)
+    rgb = ls.shade(elevs, cm.rainbow)
+    cs = ax.imshow(elevs)
+    ax.imshow(rgb)
+#
+    # create an axes on the right side of ax. The width of cax will be 2%
+    # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="2%", pad=0.05)
+    fig.colorbar(cs, cax=cax)
+#
+    ax.set_xticks([])
+    ax.set_yticks([])
+#
+    plt.savefig(f"{os.path.splitext(filePath)[0]}.pdf", bbox_inches="tight")
 #
     print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     args = sys.argv
-    main()
+    if len(args)>1:
+        main(filePath=args[1])
+    else:
+        print("pngファイルを指定してください")

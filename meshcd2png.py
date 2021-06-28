@@ -91,24 +91,21 @@ def getHighLvlTilePoint(z, tileX, tileY, pointY, pointX, difflvl):
     highlvltileY=int((pixy/denomin)/pix)
     highlvlpointY=int((pixy/denomin)%pix)
     return (z-difflvl, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)
-#
+# 与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
 def fetch_rough_tile(z, x, y):
-    """
-    与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
-    """
     # 1レベル上のタイル座標を求める
     (highlvlz, tileX, tileY, pointY, pointX)=getHighLvlTilePoint(z, x, y, 0, 0, 1)
     if (pointY != 0 and pointY != 128):
-        print("Check pointY! {}/{}/{}:(0, 0) -> {}/{}/{}:(w-> {} <-w, {})".format(z, x, y, highlvlz, tileX, tileY, pointY, pointX))
+        print(f"Check pointY! {z}/{x}/{y}:(0, 0) -> {highlvlz}/{tileX}/{tileY}:(w-> {pointY} <-w, {pointX})")
     if (pointX != 0 and pointX != 128):
-        print("Check pointX! {}/{}/{}:(0, 0) -> {}/{}/{}:({}, w-> {} <-w)".format(z, x, y, highlvlz, tileX, tileY, pointY, pointX))
+        print(f"Check pointX! {z}/{x}/{y}:(0, 0) -> {highlvlz}/{tileX}/{tileY}:({pointY}, w-> {pointX} <-w)")
     #
-    url = "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{}/{}/{}.png".format(highlvlz, tileX, tileY)
+    url = f"https://cyberjapandata.gsi.go.jp/xyz/dem_png/{highlvlz}/{tileX}/{tileY}.png"
     res=requests.get(url)
     if res.status_code == 200:
         img = Image.open(io.BytesIO(res.content))
     else:
-        print("status_code={} dem_png/{}/{}/{}.png".format(res.status_code, highlvlz, tileX, tileY))
+        print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
         print("return N/A image")
         img = Image.new("RGB",(256, 256),(128,0,0))
     return img, z-1, tileX, tileY, pointX, pointY
@@ -116,7 +113,7 @@ def fetch_rough_tile(z, x, y):
 def fetch_tile(z, x, y):
     flgGetTile=False
     for dem5lvl in (["a", "b", "c"]):
-        url = "https://cyberjapandata.gsi.go.jp/xyz/dem5{}_png/{}/{}/{}.png".format(dem5lvl, z, x, y)
+        url = f"https://cyberjapandata.gsi.go.jp/xyz/dem5{dem5lvl}_png/{z}/{x}/{y}.png"
         res=requests.get(url)
         if res.status_code == 200:
             if flgGetTile:  # 既に標高タイルが取得出来てる時は標高データがN/Aの部分だけ入れる
@@ -132,7 +129,7 @@ def fetch_tile(z, x, y):
             else:
                 break
 #        else:
-#            print("get_status={} {}/{}/{}/{}".format(res.status_code,dem5lvl, z, x, y))
+#            print(f"get_status={res.status_code} {dem5lvl}/{z}/{x}/{y}")
     # ここまでで最も詳細な標高データの取得完了。標高データN/Aがあったら次のレベルの標高データで補完する
 #    if flgGetTile:  # 既に標高タイルが取得出来てる時
     if flgGetTile is False:  # 標高タイルが取得出来ていない時
@@ -174,9 +171,7 @@ def fetch_scope_tiles(north_west, south_east):
     with ProcessPoolExecutor() as executor: # max_workersは取り敢えずpythonにお任せ
         futures = executor.map(fetch_tile_wrapper, tilecdnts)
     # イメージ取り出し。もっとスマートなやり方ありそう
-    tileimgs=[]
-    for f in futures:
-        tileimgs.append(f)
+    tileimgs=[f for f in futures]
 #
     return  np.concatenate(
         [
