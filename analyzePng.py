@@ -68,9 +68,8 @@ def main(file="tile/tile.png", verbose=False, debug=False):
     for i,pc in enumerate(peakCandidates):
         print(f"peakCandidates:{i} {pc}")
 # 標高の一覧(高い順)を取得
-    print(elevs.max(),elevs.min())
     elvslist=list(np.unique(elevs))[::-1]
-    print(len(elvslist))
+    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}, {len(elvslist)} steps will be analyzed")
     peakColProminence=[]
     for el in elvslist:
         # ピーク(候補)の2番目まで飛ばして良い
@@ -128,7 +127,6 @@ def main(file="tile/tile.png", verbose=False, debug=False):
         # 家系図を作成
         familyTree=[]
         parentCnt=0
-#        while nextHrrchy != -1:
         for hi,hrrchy in enumerate(hierarchy[0]):
             if hrrchy[3]== -1:  # 親だったら(親がいないのが親)
                 selfGeneration=1
@@ -235,30 +233,28 @@ def main(file="tile/tile.png", verbose=False, debug=False):
                 foundPeaksCandidate=[]
             else:   # 親以外
                 i = ft[0]
-                for contpoint in contours[i]:  # 境界線の座標情報を舐める
-                    compPc=(contpoint[0][0],contpoint[0][1])
-                    for iii,pc in enumerate(peakCandidates):
-                        if pc[0]<el: # 現在の標高より低いピークは対象外
-                            continue
-                        if compPc==pc[1]:    # 輪郭線の座標とピーク候補の座標が一致
-                            if debug:
-                                print(f"found peak candidate! {i}　({iii} {pc})")
-                            if int(familyTree[i][1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
-                                familyTree[i][2]="contour inside incld/peak"
-                            else:   # 孫だったらピーク
-                                familyTree[i][2]="peak"
-                                # 自分の親(=子)の情報を書き換える
-                                familyTree[hierarchy[0][i][3]][2]="contour inside (my child is a peak)"
-                                familyTree[hierarchy[0][i][3]][3]=1    # ピーク候補の数
-                                familyTree[hierarchy[0][i][3]][4]=iii  # ピーク候補の何番目か
-                                familyTree[hierarchy[0][i][3]][5]=pc[0]    # ピーク候補の標高
-                            familyTree[i].append(1)     # ピーク候補の数(1)を後ろに追加
-                            familyTree[i].append(iii)   # ピーク候補の何番目かを後ろに追加
-                            familyTree[i].append(pc[0]) # ピーク候補の標高を後ろに追加
-                            break
-                    else:
+                # 輪郭線を構成する座標の一覧を作成
+                contpointList=[tuple(contpoint[0].tolist()) for contpoint in contours[i]]
+#                print(contpointList)
+                for pci,pc in enumerate(peakCandidates):
+                    if pc[0]<el: # 現在の標高より低いピークは対象外
                         continue
-                    break
+                    if pc[1] in contpointList:  # ピーク候補の座標が輪郭線の座標の中にあれば
+                        if debug:
+                            print(f"found peak candidate! {i}　({pci} {pc})")
+                        if int(familyTree[i][1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
+                            familyTree[i][2]="contour inside incld/peak"
+                        else:   # 孫だったらピーク
+                            familyTree[i][2]="peak"
+                            # 自分の親(=子)の情報を書き換える
+                            familyTree[hierarchy[0][i][3]][2]="contour inside (my child is a peak)"
+                            familyTree[hierarchy[0][i][3]][3]=1    # ピーク候補の数
+                            familyTree[hierarchy[0][i][3]][4]=pci  # ピーク候補の何番目か
+                            familyTree[hierarchy[0][i][3]][5]=pc[0]    # ピーク候補の標高
+                        familyTree[i].append(1)     # ピーク候補の数(1)を後ろに追加
+                        familyTree[i].append(pci)   # ピーク候補の何番目かを後ろに追加
+                        familyTree[i].append(pc[0]) # ピーク候補の標高を後ろに追加
+                        break
                 else:   # 見つからなかったら
                     familyTree[i].append(0)     # ピーク候補の数(0)を後ろに追加
                     familyTree[i].append(-1)    # ピーク候補の何番目かには-1を後ろに追加
@@ -315,10 +311,10 @@ def main(file="tile/tile.png", verbose=False, debug=False):
                                 # 座標の接点を探す
                                 for ct in contours[oc[0]]:
                                     for compCt in contours[overChild[oci+findColFb][0]]:
-                                        if ct[0][0] == compCt[0][0] and ct[0][1] == compCt[0][1]:
+                                        if np.all(ct == compCt):
                                             if debug:
-                                                print(f"found col! ({ct[0][0]} {ct[0][1]})")
-                                            colList.append((ct[0][0],ct[0][1]))
+                                                print(f"found col! ({ct[0].tolist()})")
+                                            colList.append(tuple(ct[0].tolist()))
                                             break
                                     else:
                                         continue
@@ -332,9 +328,8 @@ def main(file="tile/tile.png", verbose=False, debug=False):
                                     for ct in contours[overChild[0][0]]:
                                         if elevs[ct[0][1]][ct[0][0]] == el:
                                             if debug:
-                                                print(f"found col! ({ct[0][0]} {ct[0][1]})")
-                                            colList.append((ct[0][0],ct[0][1]))
-
+                                                print(f"found col! ({tuple(ct[0].tolist())})")
+                                            colList.append(tuple(ct[0].tolist()))
                                 if len(colList)>1:  # コル座標が複数ある時
                                     newColList=[]
                                     # 同じ座標が複数出てきた時はそこが接点なので採用する
@@ -346,43 +341,20 @@ def main(file="tile/tile.png", verbose=False, debug=False):
                                     colSet=set(colList) # 重複排除
                                     colList=list(colSet)
                                 if len(colList)>1:  # コル座標が複数ある時
-                                    # 通常はピークとピークの間にあると思うので、2つのピーク座標にあるコルを採用。ちょっと雑
-                                    # この辺りは実際にやってみながら修正していく
-                                    scopeList=[]
+                                    # 通常はピークとピークの間にあると思うので、2つのピークそれぞれに最も近いコルを採用。
                                     compPcCrd=peakCandidates[compPcId][1]
-                                    scopeList.append(compPcCrd)
                                     pcCrd=peakCandidates[oc[4]][1]
-                                    scopeList.append(pcCrd)
-                                    scopeList.sort()
                                     newColList=[]
-                                    for cl in colList:
-                                        if scopeList[0]<=cl and cl<=scopeList[1]:
-                                            newColList.append(cl)
-                                    newColList.sort()
-                                    if len(newColList)==0:  # ピークとピークの間にないケースは近い方を採用
-                                        for cli,cl in enumerate(colList):
-                                            dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)
-                                            if cli==0:
-                                                holdcli=cli
-                                                holddist=dist
-                                            elif holddist > dist:
-                                                holdcli=cli
-                                                holddist=dist
-                                        newColList.append(colList[holdcli])
-                                        colList=newColList
-                                    elif len(newColList)==1:
-                                        colList=newColList
-                                    else:   # これでも複数あるケースがあるので、今のピークに近い方を採用する
-                                        for ncli,ncl in enumerate(newColList):
-                                            dist=math.sqrt((pcCrd[0]-ncl[0])**2+(pcCrd[1]-ncl[1])**2)
-                                            if ncli==0:
-                                                holdcli=ncli
-                                                holddist=dist
-                                            elif holddist > dist:
-                                                holdcli=ncli
-                                                holddist=dist
-                                        colList=[]
-                                        colList.append(newColList[holdcli])
+                                    for cli,cl in enumerate(colList):
+                                        dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)+math.sqrt((compPcCrd[0]-cl[0])**2+(compPcCrd[1]-cl[1])**2)
+                                        if cli==0:
+                                            holdcli=cli
+                                            holddist=dist
+                                        elif holddist > dist:
+                                            holdcli=cli
+                                            holddist=dist
+                                    newColList.append(colList[holdcli])
+                                    colList=newColList
                                 # ここまでやって1つにならないケースはコルが見つからない時。処理を中止させて内容要確認
                                 if len(colList)!=1:
                                     for i in range(len(contours)):
