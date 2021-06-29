@@ -13,11 +13,14 @@ import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
 minimumProminence=150   # プロミネンス(ピークとコルの標高差)最小値
-filter_size=32
-# イメージの中をfilter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
+filter_size=64
+# イメージの中を縦横filter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
 # 標高タイルは一辺が256ピクセルで、レベル15だと1つのタイルの中にピークはせいぜい1〜2座だと思うので、
-# 一辺を2分割した128くらいで良いと思うが、一応32をデフォルト値としておく。
-# テスト時は16で実施。
+# 一辺を2分割した128くらいで良いと思うが、一応 64 をデフォルト値としておく。
+passLineRate=8
+# 境界線近くに感知されるピークはpngイメージの外からorへの稜線途中と思われるので、
+# pngイメージの境界線から縦横それぞれ何%(1/passLineRate)の範囲にいるピークを落選させるかのパラメータ。
+# 実際にやってみながら調整。2**xを設定する。
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -44,15 +47,24 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
-    print(elevs.shape)
+    imageHeightWidth=[es for es in elevs.shape]
+    print(f"image height:{imageHeightWidth[0]} width:{imageHeightWidth[1]}")
+    passLineHeight=int(imageHeightWidth[0]/passLineRate)
+    passLineWidth=int(imageHeightWidth[1]/passLineRate)
 # ピーク(候補)の一覧作成
-    peakCandidates=[]
-    for yy,xx in detectPeaksCoords(elevs):
-        peakCandidates.append((elevs[yy][xx],(xx,yy)))
+#    peakCandidates=[]
+#    for yy,xx in detectPeaksCoords(elevs):
+#        peakCandidates.append((elevs[yy][xx],(xx,yy)))
+    peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
-    # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
     uniqPeakCandidates=[]
     for i,pc in enumerate(peakCandidates):
+        # 境界線からpassLineHeight/Widthの範囲内にいる候補者は今回落選させる
+        if pc[1][0]<=passLineWidth or pc[1][0]>=imageHeightWidth[1]-passLineWidth:
+            continue
+        if pc[1][1]<=passLineHeight or pc[1][1]>=imageHeightWidth[0]-passLineHeight:
+            continue
+        # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
         if i != 0:
             if prepc[0]==pc[0]: # 同じ標高で4つ固まっていたら南東の座標を採用
                 if prepc[1][0]==pc[1][0] and prepc[1][1]==pc[1][1]+1:
