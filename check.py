@@ -1,5 +1,6 @@
 import sys
 import datetime
+import inspect
 import numpy as np
 #import os
 #import requests
@@ -24,17 +25,14 @@ def detectPeaksCoords(image, filter_size=20):
     return list(zip(*np.where(temp.mask != True)))
 
 def main():
-    print(f"{args[0]}: Started @{datetime.datetime.now()}")
+    f=inspect.currentframe()
+    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
+    print(f"{myName}: Started @{datetime.datetime.now()}")
 #
-    elevs=ap.png2elevsnp()
-    peaksList=[]
-    for yy,xx in detectPeaksCoords(elevs):
-        peaksList.append((elevs[yy][xx],yy,xx))
-    peaksList.sort(key=itemgetter(0,1,2), reverse=True)
-    print(peaksList)
-#
-    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
+    print(f"{myName}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
+    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     main()
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")

@@ -1,5 +1,6 @@
 import sys
 import datetime
+import inspect
 import numpy as np
 import os
 import requests
@@ -19,8 +20,11 @@ kumotori=(35.8555, 138.9438)    # 雲取山 15/29030/12883 (196, 249)
 m=0
 ##
 def main():
-    print("{}: Started @{}".format(args[0],datetime.datetime.now()))
-#    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kitadake[0], kitadake[1], defval.const.ZOOM_LVL)
+    f=inspect.currentframe()
+    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
+    print(f"{myName}: Started @{datetime.datetime.now()}")
+#
+    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kitadake[0], kitadake[1], defval.const.ZOOM_LVL)
 #    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kannondake[0], kannondake[1], defval.const.ZOOM_LVL)
 #    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(akanuke[0], akanuke[1], defval.const.ZOOM_LVL)
     (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(akadake[0], akadake[1], defval.const.ZOOM_LVL)
@@ -30,13 +34,18 @@ def main():
     print(scope_tile.shape)
 #    img.show()
     img_scope_tile = Image.fromarray(scope_tile)
-    img_scope_tile.save(f"tile/0000-00_{defval.const.ZOOM_LVL}-{tileX-m}-{tileY-m}_{defval.const.ZOOM_LVL}-{tileX+m}-{tileY+m}.png")
-    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
+    os.makedirs(defval.const.TILE_DIR ,exist_ok=True)
+    result=f"{defval.const.TILE_DIR}/0000-00_{defval.const.ZOOM_LVL}-{tileX-m}-{tileY-m}_{defval.const.ZOOM_LVL}-{tileX+m}-{tileY+m}.png"
+    img_scope_tile.save(result)
+#
+    print(f"{myName}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
+    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     if len(args)==1:
         m=0
     else:
         m=int(sys.argv[1])
     main()
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")

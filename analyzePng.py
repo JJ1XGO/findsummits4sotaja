@@ -1,5 +1,6 @@
 import sys
 import datetime
+import inspect
 import numpy as np
 import os
 #import io
@@ -36,7 +37,9 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     return list(zip(*np.where(temp.mask != True)))
 #
 def main(filePath="tile/tile.png", verbose=False, debug=False):
-    print(f"{args[0]}: Started @{datetime.datetime.now()}")
+    f=inspect.currentframe()
+    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
+    print(f"{myName}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
     imageHeightWidth=[es for es in elevs.shape]
@@ -425,8 +428,9 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         print(f"peakColProminence:{pcli} {pcl}")
     # 出来上がったpeakColProminenceをテキストに吐き出す
     print("analysis completed")
-    os.makedirs("data" ,exist_ok=True)
-    with open(f"data/{os.path.splitext(os.path.basename(filePath))[0]}_pcp.txt", mode="w") as f:
+    os.makedirs(defval.const.PCP_DIR ,exist_ok=True)
+    result=f"{defval.const.PCP_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.txt"
+    with open(result, mode="w") as f:
         for pcl in peakColProminence:
             dat=f"{pcl[0]},{pcl[1]},{pcl[2]}\n"
             f.write(dat)
@@ -457,13 +461,16 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     ax.set_xticks([])
     ax.set_yticks([])
 #
-    plt.savefig(f"{os.path.splitext(filePath)[0]}_image.pdf", bbox_inches="tight")
+    os.makedirs(defval.const.IMAGE_DIR ,exist_ok=True)
+    plt.savefig(f"{defval.const.IMAGE_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf", bbox_inches="tight")
 #
-    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
+    print(f"{myName}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
+    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     if len(args)>1:
         main(filePath=args[1])
     else:
         print("pngファイルを指定してください")
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
