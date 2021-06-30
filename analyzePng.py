@@ -12,15 +12,7 @@ from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-minimumProminence=150   # プロミネンス(ピークとコルの標高差)最小値
-filter_size=64
-# イメージの中を縦横filter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
-# 標高タイルは一辺が256ピクセルで、レベル15だと1つのタイルの中にピークはせいぜい1〜2座だと思うので、
-# 一辺を2分割した128くらいで良いと思うが、一応 64 をデフォルト値としておく。
-passLineRate=8
-# 境界線近くに感知されるピークはpngイメージの外からorへの稜線途中と思われるので、
-# pngイメージの境界線から縦横それぞれ何%(1/passLineRate)の範囲にいるピークを落選させるかのパラメータ。
-# 実際にやってみながら調整。2**xを設定する。
+import defval
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -35,11 +27,11 @@ def png2elevs(filePath):
     return elevs
 # ピークを見つけ出す
 def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを見つけ出す
-    local_max = maximum_filter(image, footprint=np.ones((filter_size, filter_size)), mode='constant')
+    local_max = maximum_filter(image, footprint=np.ones((defval.const.FILTER_SIZE, defval.const.FILTER_SIZE)), mode='constant')
     detected_peaks = np.ma.array(image, mask=~(image == local_max))
 
     # 小さいピーク値を排除（minimumProminenceより小さなピークは排除）
-    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= minimumProminence))
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= defval.const.MINIMUM_PPROMINENCE))
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
@@ -49,20 +41,15 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     elevs=png2elevs(filePath)
     imageHeightWidth=[es for es in elevs.shape]
     print(f"image height:{imageHeightWidth[0]} width:{imageHeightWidth[1]}")
-    passLineHeight=int(imageHeightWidth[0]/passLineRate)
-    passLineWidth=int(imageHeightWidth[1]/passLineRate)
 # ピーク(候補)の一覧作成
-#    peakCandidates=[]
-#    for yy,xx in detectPeaksCoords(elevs):
-#        peakCandidates.append((elevs[yy][xx],(xx,yy)))
     peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
     uniqPeakCandidates=[]
     for i,pc in enumerate(peakCandidates):
-        # 境界線からpassLineHeight/Widthの範囲内にいる候補者は今回落選させる
-        if pc[1][0]<=passLineWidth or pc[1][0]>=imageHeightWidth[1]-passLineWidth:
+        # 外枠付近で見つかるピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
+        if pc[1][0]<=defval.const.CANDIDATE_BORDERLINE or pc[1][0]>=imageHeightWidth[1]-defval.const.CANDIDATE_BORDERLINE:
             continue
-        if pc[1][1]<=passLineHeight or pc[1][1]>=imageHeightWidth[0]-passLineHeight:
+        if pc[1][1]<=defval.const.CANDIDATE_BORDERLINE or pc[1][1]>=imageHeightWidth[0]-defval.const.CANDIDATE_BORDERLINE:
             continue
         # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
         if i != 0:
@@ -404,8 +391,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                                     for pci,pc in enumerate(peakCandidates):
                                         print(f"{el} new peakCandidates:{pci} {pc}")
     # 最後、1番標高の高いピークをpeakColProminenceに登録する
-    colList=[]
-    colList.append(list(zip(*np.where(elevs==elevs.min()))))
+    colList=[list(zip(*np.where(elevs==elevs.min())))]
     # 複数あった時は一番近い座標を採用
     if len(colList)>1:
         pcCrd=peakCandidates[0][1]
@@ -470,7 +456,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     ax.set_xticks([])
     ax.set_yticks([])
 #
-    plt.savefig(f"{os.path.splitext(filePath)[0]}.pdf", bbox_inches="tight")
+    plt.savefig(f"{os.path.splitext(filePath)[0]}_image.pdf", bbox_inches="tight")
 #
     print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 #---

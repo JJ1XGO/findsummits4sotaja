@@ -4,12 +4,7 @@ import os
 import csv
 import meshcd2png as m2p
 ## defval
-minimumProminence=150   # プロミネンス(ピークとコルの標高差)最小値
-pix=256     # pngタイルの縦横dot数でもある
-errorTolerance=3
-# peakColProminenceとsummitListをピクセル座標で突き合わせる時に、
-# 何ピクセルまでの違いなら誤差とするかの許容範囲。レベル15で1ピクセル5m。
-# 実際にやりながら調整する
+import defval
 #
 def main(filePath):
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
@@ -30,8 +25,8 @@ def main(filePath):
     print(upperLat,upperLon)
     print(lowerLat,lowerLon)
     # ベースとなるピクセル座標を計算
-    basePixelX=upperCornerMap[1]*pix
-    basePixelY=upperCornerMap[2]*pix
+    basePixelX=upperCornerMap[1]*defval.const.PIX
+    basePixelY=upperCornerMap[2]*defval.const.PIX
     print(basePixelX,basePixelY)
     # newPeakColProminencsを作成
     tmpPcp=[[
@@ -81,7 +76,7 @@ def main(filePath):
     for npcp in newPeakColProminencs:
         for sl in summitsList:
             # ピクセル座標で突き合わせる
-            if abs(npcp[1][0]-sl[17][0])<=errorTolerance and abs(npcp[1][1]-sl[17][1])<=errorTolerance:
+            if abs(npcp[1][0]-sl[17][0])<=defval.const.ERROR_TOLERANCE and abs(npcp[1][1]-sl[17][1])<=defval.const.ERROR_TOLERANCE:
                 # 一致したら後ろに追加
                 npcp.append(sl[0])          # SummitCode
                 npcp.append(sl[3])          # SummitName

@@ -13,15 +13,10 @@ from math import asin
 from math import atan
 from math import tanh
 from numpy import arctanh
-from fractions import Fraction
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-# 座標を求める際に使用する定数
-L = Fraction(85.05112878)
-pix=256     # pngタイルの縦横dot数でもある
-## その他
-dtlZoomLvl=15# 最も詳細な標高データが入ったzoomレベル
-
+import defval
+#
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):
     # 文字列に変換
@@ -55,20 +50,20 @@ def mesh2latlon(meshCode):
 # 緯度経度からピクセル座標を返す
 def latlon2PixelPoint(lat, lon, z):
     pixelX = int( (2**(z+7)) * ((lon/180) + 1) )
-    pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(L * pi/180))) )
+    pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(defval.const.L * pi/180))) )
     return pixelX, pixelY
 # ピクセル座標から緯度経度を返す
 def pixel2LatLng(z, pixelX, pixelY):
     lon = 180 * ((pixelX / 2.0**(z+7) ) - 1)
-    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*pixelY + arctanh(sin(pi/180*L)))))
+    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*pixelY + arctanh(sin(pi/180*defval.const.L)))))
     return lat, lon
 # 緯度経度からタイル座標と、そのタイル内の座標を返す
 def latlon2tilePixel(lat, lon, z):
     (pixelX,pixelY)=latlon2PixelPoint(lat, lon, z)
-    tileX=int(pixelX/pix)
-    tileY=int(pixelY/pix)
-    pointX=int(pixelX%pix)
-    pointY=int(pixelY%pix)
+    tileX=int(pixelX/defval.const.PIX)
+    tileY=int(pixelY/defval.const.PIX)
+    pointX=int(pixelX%defval.const.PIX)
+    pointY=int(pixelY%defval.const.PIX)
 #    print("({}, {}) -> {}/{}/{}:({}, {})".format(lat, lon, z, tileX, tileY, pointX, pointY))
     return tileX, tileY, pointY, pointX
 # タイル座標から緯度経度を返す
@@ -84,12 +79,12 @@ def getHighLvlTilePoint(z, tileX, tileY, pointY, pointX, difflvl):
 # タイル座標から直接計算して求める
 # 1レベルより上のタイルを使うことはないと思うけど一応汎用的に使える様にしておく
     denomin=np.power(2,difflvl)
-    pixx=tileX*pix+pointX
-    highlvltileX=int((pixx/denomin)/pix)
-    highlvlpointX=int((pixx/denomin)%pix)
-    pixy=tileY*pix+pointY
-    highlvltileY=int((pixy/denomin)/pix)
-    highlvlpointY=int((pixy/denomin)%pix)
+    pixx=tileX*defval.const.PIX+pointX
+    highlvltileX=int((pixx/denomin)/defval.const.PIX)
+    highlvlpointX=int((pixx/denomin)%defval.const.PIX)
+    pixy=tileY*defval.const.PIX+pointY
+    highlvltileY=int((pixy/denomin)/defval.const.PIX)
+    highlvlpointY=int((pixy/denomin)%defval.const.PIX)
     return (z-difflvl, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)
 # 与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
 def fetch_rough_tile(z, x, y):
@@ -164,26 +159,17 @@ def fetch_scope_tiles(north_west, south_east):
     x_range = range(north_west[1], south_east[1]+1)
     y_range = range(north_west[2], south_east[2]+1)
 # イメージタイルを取ってくる部分を並列処理化
-    tilecdnts=[]
-    for y in range(len(y_range)):
-        for x in range(len(x_range)):
-            tilecdnts.append([north_west[0], x_range[x], y_range[y]])
+    tilecdnts=[[north_west[0], x, y] for y in y_range for x in x_range]
     with ProcessPoolExecutor() as executor: # max_workersは取り敢えずpythonにお任せ
         futures = executor.map(fetch_tile_wrapper, tilecdnts)
     # イメージ取り出し。もっとスマートなやり方ありそう
     tileimgs=[f for f in futures]
 #
-    return  np.concatenate(
-        [
-            np.concatenate(
-                [np.array(
-                    tileimgs[y*len(x_range)+x]
-                ) for x in range(len(x_range))],
-                axis=1
-            ) for y in range(len(y_range))
-        ],
-        axis=0
-    )
+    return np.concatenate([
+            np.concatenate([
+                np.array(tileimgs[y*len(x_range)+x]) for x in range(len(x_range))
+            ],axis=1) for y in range(len(y_range))
+        ],axis=0)
 #-------------Main---------------------------------
 def main():
     print(f"{args[0]}: Started @{datetime.datetime.now()}")
