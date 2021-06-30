@@ -2,6 +2,8 @@ import sys
 import datetime
 import os
 import csv
+from operator import itemgetter
+from decimal import Decimal,ROUND_HALF_UP
 import meshcd2png as m2p
 ## defval
 import defval
@@ -27,7 +29,11 @@ def main(filePath):
     # ベースとなるピクセル座標を計算
     basePixelX=upperCornerMap[1]*defval.const.PIX
     basePixelY=upperCornerMap[2]*defval.const.PIX
-    print(basePixelX,basePixelY)
+    print(f"basePixelX:{basePixelX} basePixelY:{basePixelY}")
+    # 南東端のピクセル座標を計算
+    lowerPixelX=lowerCornerMap[1]*defval.const.PIX+defval.const.PIX-1
+    lowerPixelY=lowerCornerMap[2]*defval.const.PIX+defval.const.PIX-1
+    print(f"lowerPixelX:{lowerPixelX} lowerPixelY:{lowerPixelY}")
     # newPeakColProminencsを作成
     tmpPcp=[[
         t for t in pcp.replace("(","").replace(")","").replace(" ","").split(",")
@@ -48,8 +54,8 @@ def main(filePath):
     for npcp in newPeakColProminencs:
         npcp[2][0],npcp[2][1]=npcp[2][1],npcp[2][0]
         npcp[5][0],npcp[5][1]=npcp[5][1],npcp[5][0]
-    for npcp in newPeakColProminencs:
-        print(npcp)
+#    for npcp in newPeakColProminencs:
+#        print(npcp)
     # summitslist.csvを読み込む
     with open("summitslist.csv") as f:
         sl=[sl for sl in csv.reader(f)]
@@ -86,8 +92,8 @@ def main(filePath):
                 sl.append("match")  # summitsListの後ろに追加
                 matchCnt+=1
                 break
-    for npcp in newPeakColProminencs:
-        print(npcp,len(npcp))
+#    for npcp in newPeakColProminencs:
+#        print(npcp,len(npcp))
     if matchCnt!=len(summitsList):
         for sl in summitsList:
             if len(sl)!=19: # "match"が入っていれば19になる
@@ -97,6 +103,19 @@ def main(filePath):
         assert False, "summitsListとのマッチ件数不一致。内容要確認"
     # newPeakColProminencsの更新
     # SummitCodeがついたものとプロミネンスがninimumProminence以上のものだけ残してあとは捨てる
+    peakColProminenceFinalist=[npcp for npcp in newPeakColProminencs if len(npcp)==13]
+    for npcp in newPeakColProminencs:
+        if len(npcp)!=13 and npcp[7]>=defval.const.MINIMUM_PPROMINENCE:
+            npcp.append("JA/ZZ-999")    # 取り敢えずダミーコード
+            npcp.append("Unknown yet")  # 取り敢えずダミーの名前
+            # 標高。一応summitListに形式を合わせておく
+            npcp.append(int(Decimal(str(npcp[3])).quantize(Decimal("0"),rounding=ROUND_HALF_UP)))
+            npcp.append(npcp[1])        # ピクセル座標
+            npcp.append(npcp[2])        # 緯度経度
+            peakColProminenceFinalist.append(npcp)
+    peakColProminenceFinalist.sort(key=itemgetter(0,1)) # ピクセル座標で並べ替え
+    for pcpf in peakColProminenceFinalist:
+        print(pcpf)
 #
     print(f"{args[0]}: Finished @{datetime.datetime.now()}")
 ##

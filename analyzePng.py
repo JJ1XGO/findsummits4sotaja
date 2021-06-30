@@ -46,7 +46,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
     uniqPeakCandidates=[]
     for i,pc in enumerate(peakCandidates):
-        # 外枠付近で見つかるピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
+        # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
         if pc[1][0]<=defval.const.CANDIDATE_BORDERLINE or pc[1][0]>=imageHeightWidth[1]-defval.const.CANDIDATE_BORDERLINE:
             continue
         if pc[1][1]<=defval.const.CANDIDATE_BORDERLINE or pc[1][1]>=imageHeightWidth[0]-defval.const.CANDIDATE_BORDERLINE:
@@ -66,6 +66,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     del uniqPeakCandidates
     for i,pc in enumerate(peakCandidates):
         print(f"peakCandidates:{i} {pc}")
+    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}, {len(elvslist)} steps will be analyzed")
