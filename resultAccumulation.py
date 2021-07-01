@@ -1,6 +1,8 @@
 import sys
 import datetime
+import inspect
 import os
+import shutil
 import csv
 from operator import itemgetter
 from decimal import Decimal,ROUND_HALF_UP
@@ -9,7 +11,9 @@ import meshcd2png as m2p
 import defval
 #
 def main(filePath):
-    print(f"{args[0]}: Started @{datetime.datetime.now()}")
+    f=inspect.currentframe()
+    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
+    print(f"{myName}: Started @{datetime.datetime.now()}")
     # peakColProminenceを読み込む
     with open(filePath) as f:
         peakColProminence=[s.strip() for s in f.readlines()]
@@ -57,7 +61,7 @@ def main(filePath):
 #    for npcp in newPeakColProminencs:
 #        print(npcp)
     # summitslist.csvを読み込む
-    with open("summitslist.csv") as f:
+    with open(defval.const.SUMMITSLIST) as f:
         sl=[sl for sl in csv.reader(f)]
     summitsList=[]
     for sl in sl:
@@ -75,8 +79,8 @@ def main(filePath):
                 sl.append([pixelX, pixelY]) # ピクセル座標を末尾に追加
                 summitsList.append(sl)
     del sl
-    for sli,sl in enumerate(summitsList):
-        print(sli,sl)
+#    for sli,sl in enumerate(summitsList):
+#        print(sli,sl)
     # summitsListとの突き合わせ
     matchCnt=0
     for npcp in newPeakColProminencs:
@@ -101,27 +105,82 @@ def main(filePath):
         for npcp in newPeakColProminencs:
             print(npcp)
         assert False, "summitsListとのマッチ件数不一致。内容要確認"
-    # newPeakColProminencsの更新
+#
     # SummitCodeがついたものとプロミネンスがninimumProminence以上のものだけ残してあとは捨てる
-    peakColProminenceFinalist=[npcp for npcp in newPeakColProminencs if len(npcp)==13]
+    peakColProminenceFinalist=[
+        npcp+[
+            datetime.datetime.now().isoformat(timespec="seconds"),  # 登録日時
+            datetime.datetime.now().isoformat(timespec="seconds")   # 更新日時
+        ] for npcp in newPeakColProminencs if len(npcp)==13
+    ]
     for npcp in newPeakColProminencs:
-        if len(npcp)!=13 and npcp[7]>=defval.const.MINIMUM_PPROMINENCE:
+        if len(npcp)!=13 and npcp[7]>=defval.const.MINIMUM_PROMINENCE:
             npcp.append("JA/ZZ-999")    # 取り敢えずダミーコード
             npcp.append("Unknown yet")  # 取り敢えずダミーの名前
             # 標高。一応summitListに形式を合わせておく
             npcp.append(int(Decimal(str(npcp[3])).quantize(Decimal("0"),rounding=ROUND_HALF_UP)))
             npcp.append(npcp[1])        # ピクセル座標
             npcp.append(npcp[2])        # 緯度経度
+            npcp.append(datetime.datetime.now().isoformat(timespec="seconds"))  # 登録日時
+            npcp.append(datetime.datetime.now().isoformat(timespec="seconds"))  # 更新日時
             peakColProminenceFinalist.append(npcp)
-    peakColProminenceFinalist.sort(key=itemgetter(0,1)) # ピクセル座標で並べ替え
-    for pcpf in peakColProminenceFinalist:
-        print(pcpf)
+#    for npcp in peakColProminenceFinalist:
+#        print(npcp)
 #
-    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
+    # 既存のpeakColProminenceAllがあるか
+    peakColProminenceAll=[]
+    if os.path.isfile(defval.const.PEAKCOLPROMINENCEALL):
+        # あったら最終更新日時を取得
+        mtime=datetime.datetime.fromtimestamp(os.path.getmtime(defval.const.PEAKCOLPROMINENCEALL))
+        # バックアップを作成
+        os.makedirs(defval.const.BACKUP_DIR ,exist_ok=True)
+        shutil.copy2(defval.const.PEAKCOLPROMINENCEALL,
+                defval.const.BACKUP_DIR+"/"+
+                defval.const.PEAKCOLPROMINENCEALL+"."+
+                mtime.isoformat(timespec="seconds").replace("-","").replace(":",""))
+        with open(defval.const.PEAKCOLPROMINENCEALL) as f:
+            opcpa=[pcpa for pcpa in csv.reader(f)]
+        #
+        innerScopePcpa=[]
+        for opcp in opcpa:
+            # キーだけ変換しておく
+            opcp[0]=int(opcp[0])
+            opcp[1]=int(opcp[1])
+            opcp[2]=int(opcp[2])
+            # 今回の対象/非対象に振り分ける
+            if basePixelX<=opcp[1] and opcp[1]<=lowerPixelX \
+            and basePixelY<=opcp[2] and opcp[2]<=lowerPixelY:
+                innerScopePcpa.append(opcp)
+            else:
+                peakColProminenceAll.append(opcp)
+        # innerScopePcpaにいれば登録日時をpeakColProminenceFinalistの登録日時にセット
+        for pcpf in peakColProminenceFinalist:
+            for isp in innerScopePcpa:
+                if pcpf[0]==isp[0] and pcpf[1][0]==isp[1] and pcpf[1][1]==isp[2]:
+                    pcpf[13]=isp[19]
+                    break
+    # peakColProminenceAllに吐き出すために全項目平たくする
+    for pcpf in peakColProminenceFinalist:
+        peakColProminenceAll.append([
+            pcpf[0],pcpf[1][0],pcpf[1][1],pcpf[2][0],pcpf[2][1],pcpf[3],    # ピーク情報
+            pcpf[4][0],pcpf[4][1],pcpf[5][0],pcpf[5][1],pcpf[6],pcpf[7],    # コル情報とプロミネンス
+            pcpf[8],pcpf[9],pcpf[10],pcpf[11][0],pcpf[11][1],pcpf[12][0],pcpf[12][1], # サミット情報
+            pcpf[13],pcpf[14]   # 登録/更新日時
+        ])
+#    for pcpa in peakColProminenceAll:
+#        print(pcpa)
+    peakColProminenceAll.sort(key=itemgetter(0,1,2)) # ピクセル座標で並べ替え
+    # peakColProminenceAllをcsvに吐き出す
+    with open(defval.const.PEAKCOLPROMINENCEALL,"w") as f:
+        csv.writer(f).writerows(peakColProminenceAll)
+#
+    print(f"{myName}: Finished @{datetime.datetime.now()}")
 ##
 if __name__ == '__main__':
+    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     if len(args)>1:
         main(filePath=args[1])
     else:
         print("txtファイルを指定してください")
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")

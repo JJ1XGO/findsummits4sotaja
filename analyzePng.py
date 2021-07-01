@@ -32,7 +32,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     detected_peaks = np.ma.array(image, mask=~(image == local_max))
 
     # 小さいピーク値を排除（minimumProminenceより小さなピークは排除）
-    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= defval.const.MINIMUM_PPROMINENCE))
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= defval.const.MINIMUM_PROMINENCE))
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
@@ -58,7 +58,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         if i != 0:
             # 同じ標高で座標が1違いだったら1番大きい座標を採用
             if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
-                    continue
+                continue
         uniqPeakCandidates.append(pc)
         prepc=pc
     peakCandidates=uniqPeakCandidates

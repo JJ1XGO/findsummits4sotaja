@@ -7,7 +7,7 @@ const.L=Fraction(85.05112878)   # あまり意味ないかもしれないけど�
 const.PIX=256     # pngタイルの縦横dot数でもある
 #
 const.ZOOM_LVL=15   # 最も詳細な標高データが入ったzoomレベル
-const.MINIMUM_PPROMINENCE=150   # プロミネンス(ピークとコルの標高差)最小値
+const.MINIMUM_PROMINENCE=150   # プロミネンス(ピークとコルの標高差)最小値
 const.FILTER_SIZE=64
 # イメージの中を縦横filter_size(ピクセル)毎に分割し、その区画毎にピークを見つけ出すためのパラメータ
 # 標高タイルは一辺が256ピクセルで、レベル15だと1つのタイルの中にピークはせいぜい1〜2座だと思うので、
@@ -26,4 +26,5 @@ const.PCP_DIR="pcps"
 const.IMAGE_DIR="images"
 const.BACKUP_DIR="backups"
 # ファイル
-const.PEAKCOLINFO="peakColProminenceAll.csv"
+const.PEAKCOLPROMINENCEALL="peakColProminenceAll.csv"
+const.SUMMITSLIST="summitslist.csv"
