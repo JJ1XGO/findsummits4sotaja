@@ -1,5 +1,6 @@
 import sys
 import datetime
+import inspect
 import numpy as np
 import requests
 import io
@@ -172,7 +173,9 @@ def fetch_scope_tiles(north_west, south_east):
         ],axis=0)
 #-------------Main---------------------------------
 def main():
-    print(f"{args[0]}: Started @{datetime.datetime.now()}")
+    f=inspect.currentframe()
+    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
+    print(f"{myName}: Started @{datetime.datetime.now()}")
 
     mesh1=args[1][0:4]
     wkstartmesh1=str(int(mesh1)+100)
@@ -189,13 +192,17 @@ def main():
     scope_tile = fetch_scope_tiles((dtlZoomLvl,startTileX,startTileY), (dtlZoomLvl,endTileX,endTileY))
     print(scope_tile.shape)
     img_scope_tile = Image.fromarray(scope_tile)
-    img_scope_tile.save(f"tile/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png")
+    os.makedirs(defval.const.TILE_DIR ,exist_ok=True)
+    result=f"{defval.const.TILE_DIR}/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png"
+    img_scope_tile.save(result)
 
-    print(f"{args[0]}: Finished @{datetime.datetime.now()}")
+    print(f"{myName}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
+    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     if len(args)>1:
         main()
     else:
         print("1次メッシュ番号を指定してください")
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
