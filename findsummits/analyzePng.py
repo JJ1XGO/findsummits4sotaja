@@ -12,7 +12,7 @@ from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-from . import defval
+import defval
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -422,7 +422,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     # 出来上がったpeakColProminenceをテキストに吐き出す
     print("analysis completed")
     os.makedirs(defval.const.PCP_DIR ,exist_ok=True)
-    result=f"{defval.const.PCP_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.txt"
+    result=f"{defval.const.PCP_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.pcp"
     with open(result, mode="w") as f:
         for pcl in peakColProminence:
             dat=f"{pcl[0]},{pcl[1]},{pcl[2]}\n"

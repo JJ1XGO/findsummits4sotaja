@@ -5,9 +5,9 @@ import shutil
 import csv
 from operator import itemgetter
 from decimal import Decimal,ROUND_HALF_UP
-from . import meshcd2png as m2p
+import meshcd2png as m2p
 ## defval
-from . import defval
+import defval
 #
 def main(filePath):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
@@ -17,7 +17,7 @@ def main(filePath):
     for pcpi,pcp in enumerate(peakColProminence):
         print(pcpi,pcp)
     # ファイル名より座標を求める
-    baseName=os.path.splitext(os.path.basename(filePath))[0].replace("_pcp","")
+    baseName=os.path.splitext(os.path.basename(filePath))[0]
     mapAdress=baseName.split("_")
     upperCornerMap=[int(ma) for ma in mapAdress[1].split("-")]
     lowerCornerMap=[int(ma) for ma in mapAdress[2].split("-")]
@@ -133,7 +133,7 @@ def main(filePath):
         os.makedirs(defval.const.BACKUP_DIR ,exist_ok=True)
         shutil.copy2(defval.const.PEAKCOLPROMINENCEALL,
                 defval.const.BACKUP_DIR+"/"+
-                defval.const.PEAKCOLPROMINENCEALL+"."+
+                os.path.basename(defval.const.PEAKCOLPROMINENCEALL)+"."+
                 mtime.isoformat(timespec="seconds").replace("-","").replace(":",""))
         with open(defval.const.PEAKCOLPROMINENCEALL) as f:
             opcpa=[pcpa for pcpa in csv.reader(f)]
@@ -179,5 +179,5 @@ if __name__ == '__main__':
     if len(args)>1:
         main(filePath=args[1])
     else:
-        print("txtファイルを指定してください")
+        print("pcpファイルを指定してください")
     print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")

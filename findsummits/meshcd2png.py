@@ -15,7 +15,7 @@ from math import tanh
 from numpy import arctanh
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-from . import defval
+import defval
 #
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):

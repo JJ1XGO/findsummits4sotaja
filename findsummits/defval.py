@@ -1,4 +1,4 @@
-from . import const
+import const
 from fractions import Fraction
 #
 ## defval
