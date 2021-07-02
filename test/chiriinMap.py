@@ -8,9 +8,9 @@ import io
 from PIL import Image
 import matplotlib.pyplot as plt
 #
-import meshcd2png as m2p
+sys.path.append(os.path.join(os.path.dirname(__file__),".."))
+from findsummits import const,defval,meshcd2png as m2p
 ## defval
-import defval
 #
 kitadake=(35.6743, 138.2388)    # 北岳 15/28966/12904 (24, 205)
 kannondake=(35.7017, 138.3046)  # 観音岳 15/28972/12901 (6, 202)
@@ -20,9 +20,7 @@ kumotori=(35.8555, 138.9438)    # 雲取山 15/29030/12883 (196, 249)
 m=0
 ##
 def main():
-    f=inspect.currentframe()
-    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
-    print(f"{myName}: Started @{datetime.datetime.now()}")
+    print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kitadake[0], kitadake[1], defval.const.ZOOM_LVL)
 #    (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(kannondake[0], kannondake[1], defval.const.ZOOM_LVL)
@@ -38,7 +36,7 @@ def main():
     result=f"{defval.const.TILE_DIR}/0000-00_{defval.const.ZOOM_LVL}-{tileX-m}-{tileY-m}_{defval.const.ZOOM_LVL}-{tileX+m}-{tileY+m}.png"
     img_scope_tile.save(result)
 #
-    print(f"{myName}: Finished @{datetime.datetime.now()}")
+    print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")

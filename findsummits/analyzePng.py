@@ -1,6 +1,5 @@
 import sys
 import datetime
-import inspect
 import numpy as np
 import os
 #import io
@@ -13,7 +12,7 @@ from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-import defval
+from . import defval
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -37,9 +36,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     return list(zip(*np.where(temp.mask != True)))
 #
 def main(filePath="tile/tile.png", verbose=False, debug=False):
-    f=inspect.currentframe()
-    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
-    print(f"{myName}: Started @{datetime.datetime.now()}")
+    print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
     imageHeightWidth=[es for es in elevs.shape]
@@ -460,7 +457,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     os.makedirs(defval.const.IMAGE_DIR ,exist_ok=True)
     plt.savefig(f"{defval.const.IMAGE_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf", bbox_inches="tight")
 #
-    print(f"{myName}: Finished @{datetime.datetime.now()}")
+    print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")

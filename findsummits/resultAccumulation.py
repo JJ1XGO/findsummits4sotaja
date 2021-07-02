@@ -1,19 +1,16 @@
 import sys
 import datetime
-import inspect
 import os
 import shutil
 import csv
 from operator import itemgetter
 from decimal import Decimal,ROUND_HALF_UP
-import meshcd2png as m2p
+from . import meshcd2png as m2p
 ## defval
-import defval
+from . import defval
 #
 def main(filePath):
-    f=inspect.currentframe()
-    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
-    print(f"{myName}: Started @{datetime.datetime.now()}")
+    print(f"{__name__}: Started @{datetime.datetime.now()}")
     # peakColProminenceを読み込む
     with open(filePath) as f:
         peakColProminence=[s.strip() for s in f.readlines()]
@@ -174,7 +171,7 @@ def main(filePath):
     with open(defval.const.PEAKCOLPROMINENCEALL,"w") as f:
         csv.writer(f).writerows(peakColProminenceAll)
 #
-    print(f"{myName}: Finished @{datetime.datetime.now()}")
+    print(f"{__name__}: Finished @{datetime.datetime.now()}")
 ##
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")

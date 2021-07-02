@@ -1,6 +1,5 @@
 import sys
 import datetime
-import inspect
 import numpy as np
 import requests
 import io
@@ -16,7 +15,7 @@ from math import tanh
 from numpy import arctanh
 from concurrent.futures import ProcessPoolExecutor
 ## defval
-import defval
+from . import defval
 #
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):
@@ -165,7 +164,7 @@ def fetch_scope_tiles(north_west, south_east):
         futures = executor.map(fetch_tile_wrapper, tilecdnts)
     # イメージ取り出し。もっとスマートなやり方ありそう
     tileimgs=[f for f in futures]
-#
+
     return np.concatenate([
             np.concatenate([
                 np.array(tileimgs[y*len(x_range)+x]) for x in range(len(x_range))
@@ -173,9 +172,7 @@ def fetch_scope_tiles(north_west, south_east):
         ],axis=0)
 #-------------Main---------------------------------
 def main():
-    f=inspect.currentframe()
-    myName=inspect.getframeinfo(f)[0].split("/")[-1].replace("py","")+inspect.getframeinfo(f)[2]+"()"
-    print(f"{myName}: Started @{datetime.datetime.now()}")
+    print(f"{__name__}: Started @{datetime.datetime.now()}")
 
     mesh1=args[1][0:4]
     wkstartmesh1=str(int(mesh1)+100)
@@ -196,7 +193,7 @@ def main():
     result=f"{defval.const.TILE_DIR}/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png"
     img_scope_tile.save(result)
 
-    print(f"{myName}: Finished @{datetime.datetime.now()}")
+    print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")

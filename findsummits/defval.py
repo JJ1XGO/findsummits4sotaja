@@ -1,4 +1,4 @@
-import const
+from . import const
 from fractions import Fraction
 #
 ## defval
@@ -25,6 +25,7 @@ const.TILE_DIR="tiles"
 const.PCP_DIR="pcps"
 const.IMAGE_DIR="images"
 const.BACKUP_DIR="backups"
+const.DATA_DIR="data"
 # ファイル
-const.PEAKCOLPROMINENCEALL="peakColProminenceAll.csv"
-const.SUMMITSLIST="summitslist.csv"
+const.PEAKCOLPROMINENCEALL=f"{const.DATA_DIR}/peakColProminenceAll.csv"
+const.SUMMITSLIST=f"{const.DATA_DIR}/summitslist.csv"
