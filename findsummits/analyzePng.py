@@ -95,13 +95,16 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         if debug:
             print(hierarchy)
-#        contimg=np.zeros(img.shape)
-#        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-#        cv2.imwrite(f"test/{el}.png",contimg)
-#        for i in range(len(contours)):
+# debug
+#        if el==2078.4:
 #            contimg=np.zeros(img.shape)
-#            cv2.drawContours(contimg, contours, i, 255, thickness=1)
-#            cv2.imwrite(f"test/{el}-{i}.png",contimg)
+#            cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+#            cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}.png",contimg)
+#            for i in range(len(contours)):
+#                contimg=np.zeros(img.shape)
+#                cv2.drawContours(contimg, contours, i, 255, thickness=1)
+#                cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}-{i}.png",contimg)
+# debug
         # 先ずは何世代までいるか確認
         nextHrrchy=0
         genCnt=0
@@ -155,10 +158,10 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         for i in range(len(contours)):
                             contimg=np.zeros(img.shape)
                             cv2.drawContours(contimg, contours, i, 255, thickness=1)
-                            cv2.imwrite(f"test/{el}-{i}.png",contimg)
+                            cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}-{i}.png",contimg)
                         contimg=np.zeros(img.shape)
                         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-                        cv2.imwrite(f"test/{el}.png",contimg)
+                        cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}.png",contimg)
                         print(f"{el} hierarchy:{hierarchy}")
                         print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
@@ -195,14 +198,14 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             # 簡単な説明を追加
             if selfGeneration%2 != 0:   # 奇数世代(親、孫、玄孫)
                 if hrrchy[2] == -1: # 子供がいなければおそらくピーク
-                    hclass="maybe peak"
+                    hclass="maybe a peak"
                 else:
                     hclass="contour outside"    # 子供がいれば等高線の外枠
             else:   # 偶数世代(子、曾孫、来孫)
                 if hrrchy[2] == -1: # 子供がいなければ通常の等高線内枠
                     hclass="contour inside"
                 else:
-                    hclass="contour inside (maybe grandchild is a peak)"    # 子供がいればピークを含む等高線の内枠(多分)
+                    hclass="contour inside (my child maybe a peak)"    # 子供がいればピークを含む等高線の内枠(多分)
             # 番号を計算
             fNumber=str(int(parentCnt*(10**((genCnt-1)*2))+\
                     childCnt*(10**((genCnt-2)*2))+\
@@ -230,12 +233,12 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             else:   # 親以外
                 i = ft[0]
                 # 輪郭線を構成する座標の一覧を作成
-                contpointList=[tuple(contpoint[0].tolist()) for contpoint in contours[i]]
-#                print(contpointList)
+                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[i]}
+#                print(contpointSet)
                 for pci,pc in enumerate(peakCandidates):
                     if pc[0]<el: # 現在の標高より低いピークは対象外
                         continue
-                    if pc[1] in contpointList:  # ピーク候補の座標が輪郭線の座標の中にあれば
+                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
                         if debug:
                             print(f"found peak candidate! {i}　({pci} {pc})")
                         if int(familyTree[i][1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
@@ -305,27 +308,34 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                                 if debug:
                                     print(f"childId:{oc[0]} try to find col for peakCandidatesId:{oc[4]}")
                                 # 座標の接点を探す
-                                for ct in contours[oc[0]]:
-                                    for compCt in contours[overChild[oci+findColFb][0]]:
-                                        if np.all(ct == compCt):
-                                            if debug:
-                                                print(f"found col! ({ct[0].tolist()})")
-                                            colList.append(tuple(ct[0].tolist()))
-                                            break
-                                    else:
-                                        continue
-                                    break
-                                else:
-                                    if debug:
-                                        print("col not found... try parent check")
+#                                for ct in contours[oc[0]]:
+#                                    for compCt in contours[overChild[oci+findColFb][0]]:
+#                                        if np.all(ct == compCt):
+#                                            if debug:
+#                                                print(f"found col! ({ct[0].tolist()})")
+#                                            colList.append(tuple(ct[0].tolist()))
+#                                            break
+#                                    else:
+#                                        continue
+#                                    break
+#                                else:
+#                                    if debug:
+#                                        print("col not found... try parent check")
                                     # もしかしてこっちが主流か？
                                     # 親の輪郭線にしか存在しない座標がある。
                                     # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
-                                    for ct in contours[overChild[0][0]]:
-                                        if elevs[ct[0][1]][ct[0][0]] == el:
-                                            if debug:
-                                                print(f"found col! ({tuple(ct[0].tolist())})")
-                                            colList.append(tuple(ct[0].tolist()))
+#                                    for ct in contours[overChild[0][0]]:
+#                                        if elevs[ct[0][1]][ct[0][0]] == el:
+#                                            if debug:
+#                                                print(f"found col! ({tuple(ct[0].tolist())})")
+#                                            colList.append(tuple(ct[0].tolist()))
+
+                                for ct in contours[overChild[0][0]]:
+                                    if elevs[ct[0][1]][ct[0][0]] == el:
+                                        if debug:
+                                            print(f"found col! ({tuple(ct[0].tolist())})")
+                                        colList.append(tuple(ct[0].tolist()))
+
                                 if len(colList)>1:  # コル座標が複数ある時
                                     newColList=[]
                                     # 同じ座標が複数出てきた時はそこが接点なので採用する
@@ -377,7 +387,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                                         # peakColProminenceに追加
                                         prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
                                         if verbose:
-                                            if prominence >= minimumProminence:
+                                            if prominence >= defval.const.MINIMUM_PROMINENCE:
                                                 print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
                                             else:
                                                 print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
@@ -411,7 +421,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
     prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
     if verbose:
-        if prominence >= minimumProminence:
+        if prominence >= defval.const.MINIMUM_PROMINENCE:
             print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
         else:
             print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
