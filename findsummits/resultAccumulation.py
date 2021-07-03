@@ -140,10 +140,11 @@ def main(filePath):
         #
         innerScopePcpa=[]
         for opcp in opcpa:
-            # キーだけ変換しておく
+            # キーとプロミネンスを変換しておく
             opcp[0]=int(opcp[0])
             opcp[1]=int(opcp[1])
             opcp[2]=int(opcp[2])
+            opcp[11]=float(opcp[11])
             # 今回の対象/非対象に振り分ける
             if basePixelX<=opcp[1] and opcp[1]<=lowerPixelX \
             and basePixelY<=opcp[2] and opcp[2]<=lowerPixelY:
@@ -155,6 +156,10 @@ def main(filePath):
             for isp in innerScopePcpa:
                 if pcpf[0]==isp[0] and pcpf[1][0]==isp[1] and pcpf[1][1]==isp[2]:
                     pcpf[13]=isp[19]
+                    if pcpf[7]<=isp[11]: # 以前のプロミネンスの方が大きければ
+                        # コル情報とプロミネンス、更新日時は前の情報を採用
+                        pcpf[4][0],pcpf[4][1],pcpf[5][0],pcpf[5][1],pcpf[6],pcpf[7],pcpf[14]\
+                        =isp[6],isp[7],isp[8],isp[9],isp[10],isp[11],isp[20]
                     break
     # peakColProminenceAllに吐き出すために全項目平たくする
     for pcpf in peakColProminenceFinalist:
