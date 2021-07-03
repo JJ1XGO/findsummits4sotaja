@@ -1,7 +1,8 @@
 import sys
 import datetime
-import numpy as np
 import os
+import configparser
+import numpy as np
 #import io
 import collections
 import math
@@ -11,8 +12,9 @@ from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
-## defval
-import defval
+# 設定ファイル読み込み
+config=configparser.ConfigParser()
+config.read(f"{os.path.dirname(__file__)}/config.ini")
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -27,11 +29,11 @@ def png2elevs(filePath):
     return elevs
 # ピークを見つけ出す
 def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを見つけ出す
-    local_max = maximum_filter(image, footprint=np.ones((defval.const.FILTER_SIZE, defval.const.FILTER_SIZE)), mode='constant')
+    local_max = maximum_filter(image, footprint=np.ones((config["VAL"].getint("FILTER_SIZE"), config["VAL"].getint("FILTER_SIZE"))), mode='constant')
     detected_peaks = np.ma.array(image, mask=~(image == local_max))
 
     # 小さいピーク値を排除（minimumProminenceより小さなピークは排除）
-    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= defval.const.MINIMUM_PROMINENCE))
+    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= config["VAL"].getint("MINIMUM_PROMINENCE")))
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
@@ -47,9 +49,9 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     uniqPeakCandidates=[]
     for i,pc in enumerate(peakCandidates):
         # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
-        if pc[1][0]<=defval.const.CANDIDATE_BORDERLINE or pc[1][0]>=imageHeightWidth[1]-defval.const.CANDIDATE_BORDERLINE:
+        if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
             continue
-        if pc[1][1]<=defval.const.CANDIDATE_BORDERLINE or pc[1][1]>=imageHeightWidth[0]-defval.const.CANDIDATE_BORDERLINE:
+        if pc[1][1]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][1]>=imageHeightWidth[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
             continue
         # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
         if i != 0:
@@ -99,11 +101,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #        if el==2078.4:
 #            contimg=np.zeros(img.shape)
 #            cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-#            cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}.png",contimg)
+#            cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}.png',contimg)
 #            for i in range(len(contours)):
 #                contimg=np.zeros(img.shape)
 #                cv2.drawContours(contimg, contours, i, 255, thickness=1)
-#                cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}-{i}.png",contimg)
+#                cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}-{i}.png',contimg)
 # debug
         # 先ずは何世代までいるか確認
         nextHrrchy=0
@@ -158,10 +160,10 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         for i in range(len(contours)):
                             contimg=np.zeros(img.shape)
                             cv2.drawContours(contimg, contours, i, 255, thickness=1)
-                            cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}-{i}.png",contimg)
+                            cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}-{i}.png',contimg)
                         contimg=np.zeros(img.shape)
                         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-                        cv2.imwrite(f"{defval.const.IMAGE_DIR}/{el}.png",contimg)
+                        cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}.png',contimg)
                         print(f"{el} hierarchy:{hierarchy}")
                         print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
@@ -321,15 +323,14 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #                                else:
 #                                    if debug:
 #                                        print("col not found... try parent check")
-                                    # もしかしてこっちが主流か？
-                                    # 親の輪郭線にしか存在しない座標がある。
-                                    # 親の座標の中に今の標高と一致する座標がある筈なので抜き出してみる。
 #                                    for ct in contours[overChild[0][0]]:
 #                                        if elevs[ct[0][1]][ct[0][0]] == el:
 #                                            if debug:
 #                                                print(f"found col! ({tuple(ct[0].tolist())})")
 #                                            colList.append(tuple(ct[0].tolist()))
-
+                                # 当初は輪郭線内側に接点があると思っていたが、実際にやってみると
+                                # 親の輪郭線にしか接点が存在しない。上の処理は余計なのでヤメ。
+                                # 親の座標の中に今の標高と一致する座標がある筈なのでそれを抜き出す。
                                 for ct in contours[overChild[0][0]]:
                                     if elevs[ct[0][1]][ct[0][0]] == el:
                                         if debug:
@@ -387,7 +388,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                                         # peakColProminenceに追加
                                         prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
                                         if verbose:
-                                            if prominence >= defval.const.MINIMUM_PROMINENCE:
+                                            if prominence >= config["VAL"].getint("MINIMUM_PROMINENCE"):
                                                 print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
                                             else:
                                                 print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
@@ -421,7 +422,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
     prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
     if verbose:
-        if prominence >= defval.const.MINIMUM_PROMINENCE:
+        if prominence >= config["VAL"].getint("MINIMUM_PROMINENCE"):
             print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
         else:
             print(f"found peak! but not matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
@@ -431,8 +432,8 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         print(f"peakColProminence:{pcli} {pcl}")
     # 出来上がったpeakColProminenceをテキストに吐き出す
     print("analysis completed")
-    os.makedirs(defval.const.PCP_DIR ,exist_ok=True)
-    result=f"{defval.const.PCP_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.pcp"
+    os.makedirs(config["DIR"]["PCP"] ,exist_ok=True)
+    result=f'{config["DIR"]["PCP"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pcp'
     with open(result, mode="w") as f:
         for pcl in peakColProminence:
             dat=f"{pcl[0]},{pcl[1]},{pcl[2]}\n"
@@ -464,8 +465,8 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     ax.set_xticks([])
     ax.set_yticks([])
 #
-    os.makedirs(defval.const.IMAGE_DIR ,exist_ok=True)
-    plt.savefig(f"{defval.const.IMAGE_DIR}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf", bbox_inches="tight")
+    os.makedirs(config["DIR"]["IMAGE"] ,exist_ok=True)
+    plt.savefig(f'{config["DIR"]["IMAGE"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf', bbox_inches="tight")
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---

@@ -1,5 +1,7 @@
 import sys
 import datetime
+import os
+import configparser
 import numpy as np
 import requests
 import io
@@ -12,10 +14,12 @@ from math import tan
 from math import asin
 from math import atan
 from math import tanh
+from decimal import Decimal
 from numpy import arctanh
 from concurrent.futures import ProcessPoolExecutor
-## defval
-import defval
+# 設定ファイル読み込み
+config=configparser.ConfigParser()
+config.read(f"{os.path.dirname(__file__)}/config.ini")
 #
 # メッシュコードから緯度/経度を求める
 def mesh2latlon(meshCode):
@@ -49,21 +53,21 @@ def mesh2latlon(meshCode):
     return(lat, lon)
 # 緯度経度からピクセル座標を返す
 def latlon2PixelPoint(lat, lon, z):
-    pixelX = int( (2**(z+7)) * ((lon/180) + 1) )
-    pixelY = int( (2**(z+7)/pi) * (-1 * arctanh(sin(lat * pi/180)) + arctanh(sin(defval.const.L * pi/180))) )
+    pixelX = int((2**(z+7))*((lon/180)+1))
+    pixelY = int((2**(z+7)/pi)*(-1*arctanh(sin(lat*pi/180))+arctanh(sin(Decimal(config["VAL"].getfloat("L")*pi/180)))))
     return pixelX, pixelY
 # ピクセル座標から緯度経度を返す
 def pixel2LatLng(z, pixelX, pixelY):
-    lon = 180 * ((pixelX / 2.0**(z+7) ) - 1)
-    lat = 180/pi * (asin(tanh(-pi/2**(z+7)*pixelY + arctanh(sin(pi/180*defval.const.L)))))
+    lon=180*((pixelX/2**(z+7))-1)
+    lat=180/pi*(asin(tanh(-pi/2**(z+7)*pixelY+arctanh(sin(pi/180*config["VAL"].getfloat("L"))))))
     return lat, lon
 # 緯度経度からタイル座標と、そのタイル内の座標を返す
 def latlon2tilePixel(lat, lon, z):
     (pixelX,pixelY)=latlon2PixelPoint(lat, lon, z)
-    tileX=int(pixelX/defval.const.PIX)
-    tileY=int(pixelY/defval.const.PIX)
-    pointX=int(pixelX%defval.const.PIX)
-    pointY=int(pixelY%defval.const.PIX)
+    tileX=int(pixelX/config["VAL"].getint("PIX"))
+    tileY=int(pixelY/config["VAL"].getint("PIX"))
+    pointX=int(pixelX%config["VAL"].getint("PIX"))
+    pointY=int(pixelY%config["VAL"].getint("PIX"))
 #    print("({}, {}) -> {}/{}/{}:({}, {})".format(lat, lon, z, tileX, tileY, pointX, pointY))
     return tileX, tileY, pointY, pointX
 # タイル座標から緯度経度を返す
@@ -79,12 +83,12 @@ def getHighLvlTilePoint(z, tileX, tileY, pointY, pointX, difflvl):
 # タイル座標から直接計算して求める
 # 1レベルより上のタイルを使うことはないと思うけど一応汎用的に使える様にしておく
     denomin=np.power(2,difflvl)
-    pixx=tileX*defval.const.PIX+pointX
-    highlvltileX=int((pixx/denomin)/defval.const.PIX)
-    highlvlpointX=int((pixx/denomin)%defval.const.PIX)
-    pixy=tileY*defval.const.PIX+pointY
-    highlvltileY=int((pixy/denomin)/defval.const.PIX)
-    highlvlpointY=int((pixy/denomin)%defval.const.PIX)
+    pixx=tileX*config["VAL"].getint("PIX")+pointX
+    highlvltileX=int((pixx/denomin)/config["VAL"].getint("PIX"))
+    highlvlpointX=int((pixx/denomin)%config["VAL"].getint("PIX"))
+    pixy=tileY*config["VAL"].getint("PIX")+pointY
+    highlvltileY=int((pixy/denomin)/config["VAL"].getint("PIX"))
+    highlvlpointY=int((pixy/denomin)%config["VAL"].getint("PIX"))
     return (z-difflvl, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)
 # 与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
 def fetch_rough_tile(z, x, y):
@@ -173,7 +177,7 @@ def fetch_scope_tiles(north_west, south_east):
 #-------------Main---------------------------------
 def main():
     print(f"{__name__}: Started @{datetime.datetime.now()}")
-
+#
     mesh1=args[1][0:4]
     wkstartmesh1=str(int(mesh1)+100)
     wkendmesh1=str(int(mesh1)+1)
@@ -189,8 +193,8 @@ def main():
     scope_tile = fetch_scope_tiles((dtlZoomLvl,startTileX,startTileY), (dtlZoomLvl,endTileX,endTileY))
     print(scope_tile.shape)
     img_scope_tile = Image.fromarray(scope_tile)
-    os.makedirs(defval.const.TILE_DIR ,exist_ok=True)
-    result=f"{defval.const.TILE_DIR}/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png"
+    os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
+    result=f"{config['DIR']['TILE']}/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png"
     img_scope_tile.save(result)
 
     print(f"{__name__}: Finished @{datetime.datetime.now()}")

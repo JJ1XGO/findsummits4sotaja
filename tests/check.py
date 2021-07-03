@@ -1,10 +1,13 @@
 import sys
 import datetime
+import os
 import pprint
+import configparser
 #import os
 #import requests
 #import io
 #
+#from .context import findsummits
 #import analyzePng as ap
 ## defval
 # その他
@@ -12,7 +15,18 @@ import pprint
 def main():
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
-    pprint.pprint(sys.path)
+    print(os.path.dirname(__file__))
+    config=configparser.RawConfigParser()
+    config.add_section("VAL")
+    config.set("VAL","L",85.05112878)
+    config.set("VAL","PIX",256)
+    config.set("VAL","ZOOM_LVL",15)
+    with open("config.ini","w") as f:
+        config.write(f)
+#
+    config=configparser.ConfigParser()
+    config.read("config.ini")
+    print(config.sections())
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---

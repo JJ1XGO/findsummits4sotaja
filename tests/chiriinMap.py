@@ -8,8 +8,7 @@ import io
 from PIL import Image
 import matplotlib.pyplot as plt
 #
-sys.path.append(os.path.join(os.path.dirname(__file__),".."))
-from findsummits import const,defval,meshcd2png as m2p
+from .context import findsummits
 ## defval
 #
 kitadake=(35.6743, 138.2388)    # 北岳 15/28966/12904 (24, 205)

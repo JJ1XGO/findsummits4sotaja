@@ -1,13 +1,15 @@
 import sys
 import datetime
 import os
+import configparser
 import shutil
 import csv
 from operator import itemgetter
 from decimal import Decimal,ROUND_HALF_UP
 import meshcd2png as m2p
-## defval
-import defval
+# 設定ファイル読み込み
+config=configparser.ConfigParser()
+config.read(f"{os.path.dirname(__file__)}/config.ini")
 #
 def main(filePath):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
@@ -28,12 +30,12 @@ def main(filePath):
     print(upperLat,upperLon)
     print(lowerLat,lowerLon)
     # ベースとなるピクセル座標を計算
-    basePixelX=upperCornerMap[1]*defval.const.PIX
-    basePixelY=upperCornerMap[2]*defval.const.PIX
+    basePixelX=upperCornerMap[1]*config["VAL"].getint("PIX")
+    basePixelY=upperCornerMap[2]*config["VAL"].getint("PIX")
     print(f"basePixelX:{basePixelX} basePixelY:{basePixelY}")
     # 南東端のピクセル座標を計算
-    lowerPixelX=lowerCornerMap[1]*defval.const.PIX+defval.const.PIX-1
-    lowerPixelY=lowerCornerMap[2]*defval.const.PIX+defval.const.PIX-1
+    lowerPixelX=lowerCornerMap[1]*config["VAL"].getint("PIX")+config["VAL"].getint("PIX")-1
+    lowerPixelY=lowerCornerMap[2]*config["VAL"].getint("PIX")+config["VAL"].getint("PIX")-1
     print(f"lowerPixelX:{lowerPixelX} lowerPixelY:{lowerPixelY}")
     # newPeakColProminencsを作成
     tmpPcp=[[
@@ -58,7 +60,7 @@ def main(filePath):
 #    for npcp in newPeakColProminencs:
 #        print(npcp)
     # summitslist.csvを読み込む
-    with open(defval.const.SUMMITSLIST) as f:
+    with open(config["DIR"]["DATA"]+"/"+config["FILE"]["SUMMITSLIST"]) as f:
         sl=[sl for sl in csv.reader(f)]
     summitsList=[]
     for sl in sl:
@@ -83,7 +85,8 @@ def main(filePath):
     for npcp in newPeakColProminencs:
         for sl in summitsList:
             # ピクセル座標で突き合わせる
-            if abs(npcp[1][0]-sl[17][0])<=defval.const.ERROR_TOLERANCE and abs(npcp[1][1]-sl[17][1])<=defval.const.ERROR_TOLERANCE:
+            if abs(npcp[1][0]-sl[17][0])<=config["VAL"].getint("ERROR_TOLERANCE")\
+            and abs(npcp[1][1]-sl[17][1])<=config["VAL"].getint("ERROR_TOLERANCE"):
                 # 一致したら後ろに追加
                 npcp.append(sl[0])          # SummitCode
                 npcp.append(sl[3])          # SummitName
@@ -111,8 +114,8 @@ def main(filePath):
         ] for npcp in newPeakColProminencs if len(npcp)==13
     ]
     for npcp in newPeakColProminencs:
-        if len(npcp)!=13 and npcp[7]>=defval.const.MINIMUM_PROMINENCE:
-            npcp.append("JA/ZZ-999")    # 取り敢えずダミーコード
+        if len(npcp)!=13 and npcp[7]>=config["VAL"].getint("MINIMUM_PROMINENCE"):
+            npcp.append("ZZ/ZZ-999")    # 取り敢えずダミーコード
             npcp.append("Unknown yet")  # 取り敢えずダミーの名前
             # 標高。一応summitListに形式を合わせておく
             npcp.append(int(Decimal(str(npcp[3])).quantize(Decimal("0"),rounding=ROUND_HALF_UP)))
@@ -126,16 +129,16 @@ def main(filePath):
 #
     # 既存のpeakColProminenceAllがあるか
     peakColProminenceAll=[]
-    if os.path.isfile(defval.const.PEAKCOLPROMINENCEALL):
+    if os.path.isfile(config["DIR"]["DATA"]+"/"+config["FILE"]["PEAKCOLPROMINENCEALL"]):
         # あったら最終更新日時を取得
-        mtime=datetime.datetime.fromtimestamp(os.path.getmtime(defval.const.PEAKCOLPROMINENCEALL))
+        mtime=datetime.datetime.fromtimestamp(os.path.getmtime(config["DIR"]["data"]+"/"+config["FILE"]["PEAKCOLPROMINENCEALL"]))
         # バックアップを作成
-        os.makedirs(defval.const.BACKUP_DIR ,exist_ok=True)
-        shutil.copy2(defval.const.PEAKCOLPROMINENCEALL,
-                defval.const.BACKUP_DIR+"/"+
-                os.path.basename(defval.const.PEAKCOLPROMINENCEALL)+"."+
-                mtime.isoformat(timespec="seconds").replace("-","").replace(":",""))
-        with open(defval.const.PEAKCOLPROMINENCEALL) as f:
+        os.makedirs(config["DIR"]["BACKUP"] ,exist_ok=True)
+        shutil.copy2(config["DIR"]["DATA"]+"/"+config["FILE"]["PEAKCOLPROMINENCEALL"],
+            config["DIR"]["BACKUP"]+"/"+
+            config["FILE"]["PEAKCOLPROMINENCEALL"]+"."+
+            mtime.isoformat(timespec="seconds").replace("-","").replace(":",""))
+        with open(config["DIR"]["DATA"]+"/"+config["FILE"]["PEAKCOLPROMINENCEALL"]) as f:
             opcpa=[pcpa for pcpa in csv.reader(f)]
         #
         innerScopePcpa=[]
@@ -169,11 +172,19 @@ def main(filePath):
             pcpf[8],pcpf[9],pcpf[10],pcpf[11][0],pcpf[11][1],pcpf[12][0],pcpf[12][1], # サミット情報
             pcpf[13],pcpf[14]   # 登録/更新日時
         ])
+    # peakColProminenceAllを summitsListにあるものとそうでないものに分ける
+    pcpSummitsJA=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("JA")]
+    pcpNewSummits=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("ZZ")]
+    # 新たに見つかったサミットはピクセル座標で並べ替えてダミーのSummitCodeを付与
+    pcpNewSummits.sort(key=itemgetter(0,1,2))
+    for pcpnsi,pcpns in enumerate(pcpNewSummits):
+        pcpns[12]=f"JAx/ZZ-{pcpnsi:0=3}"
+    peakColProminenceAll=pcpSummitsJA+pcpNewSummits
 #    for pcpa in peakColProminenceAll:
 #        print(pcpa)
     peakColProminenceAll.sort(key=itemgetter(0,1,2)) # ピクセル座標で並べ替え
     # peakColProminenceAllをcsvに吐き出す
-    with open(defval.const.PEAKCOLPROMINENCEALL,"w") as f:
+    with open(config["DIR"]["DATA"]+"/"+config["FILE"]["PEAKCOLPROMINENCEALL"],"w") as f:
         csv.writer(f).writerows(peakColProminenceAll)
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
