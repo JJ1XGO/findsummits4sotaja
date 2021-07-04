@@ -6,15 +6,7 @@ import numpy as np
 import requests
 import io
 from PIL import Image
-from math import pi
-from math import e
-from math import log
-from math import sin
-from math import tan
-from math import asin
-from math import atan
-from math import tanh
-from decimal import Decimal
+from math import pi,e,log,sin,tan,asin,atan,tanh
 from numpy import arctanh
 from concurrent.futures import ProcessPoolExecutor
 # 設定ファイル読み込み
@@ -26,28 +18,22 @@ def mesh2latlon(meshCode):
     # 文字列に変換
     meshCode = str(meshCode)
     # １次メッシュ用計算
-    code_first_two = meshCode[0:2]
-    code_last_two = meshCode[2:4]
-    code_first_two = int(code_first_two)
-    code_last_two = int(code_last_two)
+    code_first_two = int(meshCode[0:2])
+    code_last_two = int(meshCode[2:4])
     lat  = code_first_two * 2 / 3
     lon = code_last_two + 100
-
+    # 一応、２次メッシュ/3次メッシュにも対応しておく
     if len(meshCode) > 4:
         # ２次メッシュ用計算
         if len(meshCode) >= 6:
-            code_fifth = meshCode[4:5]
-            code_sixth = meshCode[5:6]
-            code_fifth = int(code_fifth)
-            code_sixth = int(code_sixth)
+            code_fifth = int(meshCode[4:5])
+            code_sixth = int(meshCode[5:6])
             lat += code_fifth * 2 / 3 / 8
             lon += code_sixth / 8
         # ３次メッシュ用計算
         if len(meshCode) == 8:
-            code_seventh = meshCode[6:7]
-            code_eighth = meshCode[7:8]
-            code_seventh = int(code_seventh)
-            code_eighth = int(code_eighth)
+            code_seventh = int(meshCode[6:7])
+            code_eighth = int(meshCode[7:8])
             lat += code_seventh * 2 / 3 / 8 / 10
             lon += code_eighth / 8 / 10
     return(lat, lon)
@@ -145,14 +131,6 @@ def fetch_tile(z, x, y):
             imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
         # ↑ここのforブロックを並列処理化したいが上手く実装出来ず
     img = Image.fromarray(imgarry)  # imgarryをImageに変換
-    # resizeの動きが明確にわからないので取り敢えず保留
-#    else:   # 標高タイルが取得出来てない時
-#        (imgtile,zlvl,tileX,tileY,pixX,pixY) = fetch_rough_tile(z, x, y) # 1レベル粗い標高タイルを取得
-#        print("{}/{}/{} cropping from {}/{}/{} ({}, {})".format(z, x, y, zlvl,tileX,tileY,pixX,pixY))
-#        crpimg = imgtile.crop((pixX, pixY, pixX+pix/2, pixY+pix/2))
-##        print(crpimg.width, crpimg.height)
-#        img = crpimg.resize((crpimg.width*2, crpimg.height*2))
-
     return img
 # 並列処理するためのwrapper
 def fetch_tile_wrapper(tilecdnts):

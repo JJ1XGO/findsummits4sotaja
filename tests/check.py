@@ -15,18 +15,9 @@ import configparser
 def main():
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
-    print(os.path.dirname(__file__))
-    config=configparser.RawConfigParser()
-    config.add_section("VAL")
-    config.set("VAL","L",85.05112878)
-    config.set("VAL","PIX",256)
-    config.set("VAL","ZOOM_LVL",15)
-    with open("config.ini","w") as f:
-        config.write(f)
-#
-    config=configparser.ConfigParser()
-    config.read("config.ini")
-    print(config.sections())
+    print([None]*10)
+    print(type([None]*10))
+    print(len([None]*10))
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---
