@@ -40,7 +40,7 @@ def mesh2latlon(meshCode):
 # 緯度経度からピクセル座標を返す
 def latlon2PixelPoint(lat, lon, z):
     pixelX = int((2**(z+7))*((lon/180)+1))
-    pixelY = int((2**(z+7)/pi)*(-1*arctanh(sin(lat*pi/180))+arctanh(sin(Decimal(config["VAL"].getfloat("L")*pi/180)))))
+    pixelY = int((2**(z+7)/pi)*(-1*arctanh(sin(lat*pi/180))+arctanh(sin(config["VAL"].getfloat("L")*pi/180))))
     return pixelX, pixelY
 # ピクセル座標から緯度経度を返す
 def pixel2LatLng(z, pixelX, pixelY):

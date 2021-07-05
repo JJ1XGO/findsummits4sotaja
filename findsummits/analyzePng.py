@@ -56,11 +56,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             continue
         # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
         if pcCnt != 0:
-            pcCnt+=1
             # 同じ標高で座標が1違いだったら1番大きい座標を採用
             if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
                 continue
         uniqPeakCandidates.append(pc)
+        pcCnt+=1
         prepc=pc
     # 処理スピード対策。
     # peakCandidatesをそのまま使っていると件数が大量になった時にパフォーマンスが落ちるので、
