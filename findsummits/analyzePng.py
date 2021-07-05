@@ -47,35 +47,59 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
     uniqPeakCandidates=[]
-    for i,pc in enumerate(peakCandidates):
+    pcCnt=0
+    for pc in peakCandidates:
         # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
         if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
             continue
         if pc[1][1]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][1]>=imageHeightWidth[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
             continue
         # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
-        if i != 0:
+        if pcCnt != 0:
+            pcCnt+=1
             # 同じ標高で座標が1違いだったら1番大きい座標を採用
             if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
                 continue
         uniqPeakCandidates.append(pc)
         prepc=pc
-    peakCandidates=uniqPeakCandidates
-    del uniqPeakCandidates
-    for i,pc in enumerate(peakCandidates):
+    # 処理スピード対策。
+    # peakCandidatesをそのまま使っていると件数が大量になった時にパフォーマンスが落ちるので、
+    # dequeに入れてpeakCandidatesには必要な分だけを入れておく様にする。
+    peakCandidatesDq=collections.deque()
+    peakCandidatesDq.extend(uniqPeakCandidates)
+#    peakCandidates=uniqPeakCandidates
+#    del uniqPeakCandidates
+#    for i,pc in enumerate(peakCandidates):
+    for i,pc in enumerate(uniqPeakCandidates):
         print(f"peakCandidates:{i} {pc}")
-    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
+#    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
+    assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
+    del uniqPeakCandidates
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}, {len(elvslist)} steps will be analyzed")
+#
+    peakCandidates=[peakCandidatesDq.popleft()] # 最初の候補者を入れておく
+    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
+    endOfCandidate=False
     peakColProminence=[]
     for el in elvslist:
+        # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
+        if not endOfCandidate:  # ピーク候補者がまだいれば
+            while pcpdq[0]>=el: # スタンバイしている候補者が今の標高以上なら
+                peakCandidates.append(pcpdq)    # peakCandidatesに追加
+                if len(peakCandidatesDq)>0:     # 候補者がまだいれば
+                    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
+                else:   # いなくなったら終了
+                    endOfCandidate=True
+                    break
+        # ピーク(候補)が1つだけなら次が出てくるまで飛ばして良い
+        if len(peakCandidates)==1:
+            continue
+        # deque使って必要な分だけ入れる様にしたので下記3行は不要
         # ピーク(候補)の2番目まで飛ばして良い
-        if len(peakCandidates)>1 and el > peakCandidates[1][0]:
-            continue
-        # ピーク(候補)が残り1つになったら標高の1番低い所まで飛ばして良い
-        if len(peakCandidates)==1 and el > elvslist[-1]:
-            continue
+#        if len(peakCandidates)>1 and el > peakCandidates[1][0]:
+#            continue
 #        debug = True if el==2674.02 else False
         if verbose:
             print(f"analyzing elevation {el} m")
@@ -88,8 +112,8 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         # ピークをプロットして
         for hh,xy in peakCandidates:
-            if el > hh:
-                break
+#            if el > hh:
+#                break
             contimg[xy[1]][xy[0]]=255
         img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
@@ -238,8 +262,8 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                 contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[i]}
 #                print(contpointSet)
                 for pci,pc in enumerate(peakCandidates):
-                    if pc[0]<el: # 現在の標高より低いピークは対象外
-                        continue
+#                    if pc[0]<el: # 現在の標高より低いピークは対象外
+#                        continue
                     if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
                         if debug:
                             print(f"found peak candidate! {i}　({pci} {pc})")
