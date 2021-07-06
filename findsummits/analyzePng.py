@@ -12,9 +12,12 @@ from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
 # 設定ファイル読み込み
 config=configparser.ConfigParser()
 config.read(f"{os.path.dirname(__file__)}/config.ini")
+# 時間測定
+import csv
 #
 def png2elevs(filePath):
     img = cv2.imread(filePath)
@@ -83,8 +86,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
     endOfCandidate=False
     peakColProminence=[]
-    timeList=[]
-    for el in elvslist:
+# 時間測定
+    with open(config["DIR"]["DATA"]+"/timestamp.csv","w") as f:
+        csv.writer(f).writerow(["el","func","microseconds"])
+#
+    for el in tqdm(elvslist):
         # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
         if not endOfCandidate:  # ピーク候補者がまだいれば
             while pcpdq[0]>=el: # スタンバイしている候補者が今の標高以上なら
@@ -97,29 +103,38 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         # ピーク(候補)が1つだけなら次が出てくるまで飛ばして良い
         if len(peakCandidates)==1:
             continue
-        # deque使って必要な分だけ入れる様にしたので下記3行は不要
-        # ピーク(候補)の2番目まで飛ばして良い
-#        if len(peakCandidates)>1 and el > peakCandidates[1][0]:
-#            continue
 #        debug = True if el==2674.02 else False
+# 時間測定
+        start=datetime.datetime.now()
+#
         if verbose:
             print(f"analyzing elevation {el} m")
         img=np.uint8(np.where(elevs>=el,255,0))
         # 輪郭を抽出する。最初はベタ塗りの画像から輪郭だけ抽出したいので
         # 階層問わず(cv2.RETR_LIST)輪郭のみのメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"findContours(1)",td.microseconds])
+        start=datetime.datetime.now()
+#
         # 輪郭を描画する
         contimg=np.zeros(img.shape)
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         # ピークをプロットして
         for hh,xy in peakCandidates:
-#            if el > hh:
-#                break
-            contimg[xy[1]][xy[0]]=255
+            contimg[xy[1],xy[0]]=255
         img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"findContours(2)",td.microseconds])
+        start=datetime.datetime.now()
+#
         if debug:
             print(hierarchy)
 # debug
@@ -132,30 +147,36 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #                cv2.drawContours(contimg, contours, i, 255, thickness=1)
 #                cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}-{i}.png',contimg)
 # debug
+        # numpyのインデックス指定でのアクセスは時間が掛かるとの事なのでリスト化する
+        hierarchyList=hierarchy[0].tolist()
         # 先ずは何世代までいるか確認
         nextHrrchy=0
         genCnt=0
-        for hrrchy in hierarchy[0]:
+        for hrrchy in hierarchyList:
             if hrrchy[2]!= -1:  # 子供がいたら次の人へ
                 continue
             genCntt=1
             nextHrrchy=hrrchy
             while nextHrrchy[3] != -1:  # 親がいなくなるまで遡る
                 genCntt+=1
-#                currentHrrchy=nextHrrchy
-#                nextHrrchy=hierarchy[0][currentHrrchy[3]]
-                nextHrrchy=hierarchy[0][nextHrrchy[3]]
+                nextHrrchy=hierarchyList[nextHrrchy[3]]
             if genCnt < genCntt:
                 genCnt=genCntt
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"generation check",td.microseconds])
+        start=datetime.datetime.now()
+#
         #親世代だけだったら子供が出てくるまで飛ばす
         if debug:
             print(f"{el} 世代階層:{genCnt}")
         if genCnt==1:
             continue
         # 家系図を作成
-        familyTree=[]
+        familyTree=[None]*len(hierarchyList)    # 必要な数だけ最初に配列作っておく
         parentCnt=0
-        for hi,hrrchy in enumerate(hierarchy[0]):
+        for hi,hrrchy in enumerate(hierarchyList):
             if hrrchy[3]== -1:  # 親だったら(親がいないのが親)
                 selfGeneration=1
                 parentCnt+=1
@@ -191,7 +212,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         contimg=np.zeros(img.shape)
                         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                         cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}.png',contimg)
-                        print(f"{el} hierarchy:{hierarchy}")
+                        print(f"{el} hierarchy:{hierarchyList}")
                         print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
                         for i,pft in enumerate(familyTree):
@@ -242,7 +263,14 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                     g2gChildCnt*(10**((genCnt-4)*2))+\
                     g3gChildCnt*(10**((genCnt-5)*2))+\
                     g4gChildCnt*(10**((genCnt-6)*2))))
-            familyTree.append([hi,fNumber.zfill((genCnt*2)+1),hclass])
+            # 最初に用意しておいた配列に入れる。この段階で次に必要な配列も用意しておく
+            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,None,None,None]
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"make familyTree",td.microseconds])
+        start=datetime.datetime.now()
+#
         if debug:
             for ft in familyTree:
                 print(el,ft)
@@ -251,51 +279,48 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
                 if ft[0]==0:
                     pass
-                else:
-                    familyTree[parentIdx].append(peakCnt)
+                else:   # 1つ前の親の情報を更新
+                    familyTree[parentIdx][3]=peakCnt
                     # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
-                    familyTree[parentIdx].append(min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1)
-                    familyTree[parentIdx].append(peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1)
+                    familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
+                    familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
                 parentIdx=ft[0]
                 peakCnt=0
                 foundPeaksCandidate=[]
             else:   # 親以外
-                i = ft[0]
                 # 輪郭線を構成する座標の一覧を作成
-                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[i]}
-#                print(contpointSet)
+                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[ft[0]]}
                 for pci,pc in enumerate(peakCandidates):
-#                    if pc[0]<el: # 現在の標高より低いピークは対象外
-#                        continue
                     if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
                         if debug:
-                            print(f"found peak candidate! {i}　({pci} {pc})")
-                        if int(familyTree[i][1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
-                            familyTree[i][2]="contour inside incld/peak"
+                            print(f"found peak candidate! {ft[0]}　({pci} {pc})")
+                        if int(ft[1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
+                            ft[2]="contour inside incld/peak"
                         else:   # 孫だったらピーク
-                            familyTree[i][2]="peak"
-                            # 自分の親(=子)の情報を書き換える
-                            familyTree[hierarchy[0][i][3]][2]="contour inside (my child is a peak)"
-                            familyTree[hierarchy[0][i][3]][3]=1    # ピーク候補の数
-                            familyTree[hierarchy[0][i][3]][4]=pci  # ピーク候補の何番目か
-                            familyTree[hierarchy[0][i][3]][5]=pc[0]    # ピーク候補の標高
-                        familyTree[i].append(1)     # ピーク候補の数(1)を後ろに追加
-                        familyTree[i].append(pci)   # ピーク候補の何番目かを後ろに追加
-                        familyTree[i].append(pc[0]) # ピーク候補の標高を後ろに追加
+                            ft[2]="peak"
+                            # 自分(孫)の親(=子)の情報を書き換える
+                            childIdx=hierarchyList[ft[0]][3]
+                            familyTree[childIdx][2]="contour inside (my child is a peak)"
+                            familyTree[childIdx][3]=1       # ピーク候補の数
+                            familyTree[childIdx][4]=pci     # ピーク候補の何番目か
+                            familyTree[childIdx][5]=pc[0]   # ピーク候補の標高
+                        ft[3]=1     # ピーク候補の数(1)
+                        ft[4]=pci   # ピーク候補の何番目か
+                        ft[5]=pc[0] # ピーク候補の標高
                         break
                 else:   # 見つからなかったら
-                    familyTree[i].append(0)     # ピーク候補の数(0)を後ろに追加
-                    familyTree[i].append(-1)    # ピーク候補の何番目かには-1を後ろに追加
-                    familyTree[i].append(-1)    # ピーク候補の標高には-1を後ろに追加
+                    ft[3]=0          # ピーク候補の数(0)
+                    ft[4]=-1         # ピーク候補の何番目か(-1)
+                    ft[5]=-1         # ピーク候補の標高(-1)
                 # 見つけたピーク候補の番号が今回初めてだったら
-                if familyTree[i][3]==1 and familyTree[i][4] not in foundPeaksCandidate:
-                    foundPeaksCandidate.append(familyTree[i][4]) # 見つけたピーク候補の番号を控えておく
+                if ft[3]==1 and ft[4] not in foundPeaksCandidate:
+                    foundPeaksCandidate.append(ft[4]) # 見つけたピーク候補の番号を控えておく
                     peakCnt+=1  # 見つけたピーク数をカウントアップ
-        else:
-            familyTree[parentIdx].append(peakCnt)
+        else:   # 終わったら1番最後の親の情報を更新
+            familyTree[parentIdx][3]=peakCnt
             # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
-            familyTree[parentIdx].append(min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1)
-            familyTree[parentIdx].append(peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1)
+            familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
+            familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
 # (2804.51, (183, 420))
 #        for ft in familyTree:
 #            if ft[5]==2804.51:
@@ -303,6 +328,12 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #                 break
 #        else:
 #            debug=False
+#
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"update familyTree",td.microseconds])
+        start=datetime.datetime.now()
 #
         if debug:
             for ft in familyTree:
@@ -400,7 +431,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                             cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                             cv2.imwrite(f"test/{el}.png",contimg)
                             #print(f"contours:{contours}")
-                            print(f"{el} hierarchy:{hierarchy}")
+                            print(f"{el} hierarchy:{hierarchyList}")
                             for i,pft in enumerate(familyTree):
                                 print(f"{el} familyTree:{i} {pft}")
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
@@ -426,6 +457,12 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         if debug:
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} new peakCandidates:{pci} {pc}")
+# 時間測定
+        td=datetime.datetime.now()-start
+        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
+            csv.writer(f).writerow([el,"check familyTree",td.microseconds])
+        start=datetime.datetime.now()
+#
     # 最後、1番標高の高いピークをpeakColProminenceに登録する
     colList=[list(zip(*np.where(elevs==elevs.min())))]
     # 複数あった時は一番近い座標を採用
