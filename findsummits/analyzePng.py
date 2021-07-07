@@ -123,11 +123,14 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         start=datetime.datetime.now()
 #
         # 輪郭を描画する
-        contimg=np.zeros(img.shape,dtype=np.uint8)
-        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+#        contimg=np.zeros(img.shape,dtype=np.uint8)
+#        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+        img=np.zeros(img.shape,dtype=np.uint8)
+        cv2.drawContours(img, contours, -1, 255, thickness=1)
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
-            contimg[xy[1],xy[0]]=255
+#            contimg[xy[1],xy[0]]=255
+            img[xy[1],xy[0]]=255
 #        img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
