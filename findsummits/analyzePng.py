@@ -109,7 +109,10 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #
         if verbose:
             print(f"analyzing elevation {el} m")
-        img=np.uint8(np.where(elevs>=el,255,0))
+        # img=np.uint8(np.where(elevs>=el,255,0))
+        # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
+        img=np.zeros(elevs.shape,dtype=np.uint8)
+        img[elevs>=el]=255
         # 輪郭を抽出する。最初はベタ塗りの画像から輪郭だけ抽出したいので
         # 階層問わず(cv2.RETR_LIST)輪郭のみのメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -120,12 +123,12 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         start=datetime.datetime.now()
 #
         # 輪郭を描画する
-        contimg=np.zeros(img.shape)
+        contimg=np.zeros(img.shape,dtype=np.uint8)
         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-        # ピークをプロットして
+        # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
             contimg[xy[1],xy[0]]=255
-        img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
+#        img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
