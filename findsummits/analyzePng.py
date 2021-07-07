@@ -76,7 +76,6 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     for i,pc in enumerate(uniqPeakCandidates):
         print(f"peakCandidates:{i} {pc}")
 #    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
-    print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
     assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
     del uniqPeakCandidates
 # 標高の一覧(高い順)を取得
