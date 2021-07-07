@@ -76,6 +76,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     for i,pc in enumerate(uniqPeakCandidates):
         print(f"peakCandidates:{i} {pc}")
 #    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
+    print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
     assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
     del uniqPeakCandidates
 # 標高の一覧(高い順)を取得
@@ -223,6 +224,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
                         for i,pft in enumerate(familyTree):
                             print(f"{el} familyTree:{i} {pft}")
+                        print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                         assert False, "昆孫以降は想定外。内容要確認"
                 else:
                     # 上の兄弟の番号から自分の世代を求める
@@ -443,6 +445,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
+                            print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                             assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
                         if debug:
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
@@ -488,6 +491,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         colList=newColList
     if len(colList)!=1:
         print(colList)
+        print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
         assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
     popPc=peakCandidates.pop(0)   # ピーク候補から削除
     # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
