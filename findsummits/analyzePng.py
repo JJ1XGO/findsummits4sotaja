@@ -11,6 +11,9 @@ import cv2
 from operator import itemgetter
 from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
+from matplotlib.colors import LightSource
+import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 # 設定ファイル読み込み
@@ -40,7 +43,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main(filePath="tile/tile.png", verbose=False, debug=False):
+def main(filePath, verbose=False, debug=False, processtimelog=False):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
@@ -51,6 +54,7 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     peakCandidates.sort(key=itemgetter(0,1), reverse=True)
     uniqPeakCandidates=[]
     pcCnt=0
+    prepc=[]    # numba用
     for pc in peakCandidates:
         # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
         if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
@@ -87,8 +91,9 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     endOfCandidate=False
     peakColProminence=[]
 # 時間測定
-    with open(config["DIR"]["DATA"]+"/timestamp.csv","w") as f:
-        csv.writer(f).writerow(["el","func","microseconds"])
+    if processtimelog:
+        with open(config["DIR"]["DATA"]+"/processtime.csv","w") as f:
+            csv.writer(f).writerow(["el","func","microseconds"])
 #
     for el in tqdm(elvslist):
         # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
@@ -105,7 +110,8 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             continue
 #        debug = True if el==2674.02 else False
 # 時間測定
-        start=datetime.datetime.now()
+        if processtimelog:
+            start=datetime.datetime.now()
 #
         if verbose:
             print(f"analyzing elevation {el} m")
@@ -117,10 +123,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         # 階層問わず(cv2.RETR_LIST)輪郭のみのメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"findContours(1)",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"findContours(1)",td.microseconds])
+            start=datetime.datetime.now()
 #
         # 輪郭を描画する
 #        contimg=np.zeros(img.shape,dtype=np.uint8)
@@ -136,10 +143,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"findContours(2)",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"findContours(2)",td.microseconds])
+            start=datetime.datetime.now()
 #
         if debug:
             print(hierarchy)
@@ -169,10 +177,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             if genCnt < genCntt:
                 genCnt=genCntt
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"generation check",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"generation check",td.microseconds])
+            start=datetime.datetime.now()
 #
         #親世代だけだったら子供が出てくるまで飛ばす
         if debug:
@@ -273,10 +282,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
             # 最初に用意しておいた配列に入れる。この段階で次に必要な配列も用意しておく
             familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,None,None,None]
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"make familyTree",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"make familyTree",td.microseconds])
+            start=datetime.datetime.now()
 #
         if debug:
             for ft in familyTree:
@@ -337,10 +347,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
 #            debug=False
 #
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"update familyTree",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"update familyTree",td.microseconds])
+            start=datetime.datetime.now()
 #
         if debug:
             for ft in familyTree:
@@ -377,32 +388,25 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                         if debug:
                             print(f"childId:{oc[0]} try to find col for peakCandidatesId:{oc[4]}")
                         # 座標の接点を探す
-#                        for ct in contours[oc[0]]:
-#                           for compCt in contours[overChild[oci+findColFb][0]]:
-#                               if np.all(ct == compCt):
-#                                   if debug:
-#                                       print(f"found col! ({ct[0].tolist()})")
-#                                   colList.append(tuple(ct[0].tolist()))
-#                                   break
-#                           else:
-#                               continue
-#                           break
-#                        else:
-#                           if debug:
-#                               print("col not found... try parent check")
-#                           for ct in contours[overChild[0][0]]:
-#                               if elevs[ct[0][1]][ct[0][0]] == el:
-#                                  if debug:
-#                                       print(f"found col! ({tuple(ct[0].tolist())})")
-#                                   colList.append(tuple(ct[0].tolist()))
                         # 当初は輪郭線内側に接点があると思っていたが、実際にやってみると
                         # 親の輪郭線にしか接点が存在しない。上の処理は余計なのでヤメ。
                         # 親の座標の中に今の標高と一致する座標がある筈なのでそれを抜き出す。
                         for ct in contours[overChild[0][0]]:
-                            if elevs[ct[0][1]][ct[0][0]] == el:
+                            if elevs[ct[0][1],ct[0][0]] == el:
                                 if debug:
                                     print(f"found col! ({tuple(ct[0].tolist())})")
                                 colList.append(tuple(ct[0].tolist()))
+                        if len(colList)==0: # 親の輪郭線にコルの座標が見つからなかった時は子同士の接点を探す
+                            for ct in contours[oc[0]]:  # 自分の輪郭線の座標と
+                                for compCt in contours[overChild[oci+findColFb][0]]:    # 相手の輪郭線の座標を比較して
+                                    if np.all(ct==compCt):  # 一致していればコル座標を発見
+                                        if debug:
+                                            print(f"found col! ({ct[0].tolist()})")
+                                        colList.append(tuple(ct[0].tolist()))
+                                        break
+                                else:   # 見つからなかったら
+                                    continue    # 次の座標へ
+                                break
                         if len(colList)>1:  # コル座標が複数ある時
                             newColList=[]
                             # 同じ座標が複数出てきた時はそこが接点なので採用する
@@ -430,17 +434,19 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                             colList=newColList
                         # ここまでやって1つにならないケースはコルが見つからない時。処理を中止させて内容要確認
                         if len(colList)!=1:
-                            for i in range(len(contours)):
-                                contimg=np.zeros(img.shape)
-                                cv2.drawContours(contimg, contours, i, 255, thickness=1)
-                                cv2.imwrite(f"test/{el}-{i}.png",contimg)
-                            contimg=np.zeros(img.shape)
-                            cv2.drawContours(contimg, contours, -1, 255, thickness=1)
-                            cv2.imwrite(f"test/{el}.png",contimg)
+                            #for i in range(len(contours)):
+                            #    contimg=np.zeros(img.shape)
+                            #    cv2.drawContours(contimg, contours, i, 255, thickness=1)
+                            #    cv2.imwrite(f"test/{el}-{i}.png",contimg)
+                            #contimg=np.zeros(img.shape)
+                            #cv2.drawContours(contimg, contours, -1, 255, thickness=1)
+                            #cv2.imwrite(f"test/{el}.png",contimg)
                             #print(f"contours:{contours}")
                             print(f"{el} hierarchy:{hierarchyList}")
                             for i,pft in enumerate(familyTree):
                                 print(f"{el} familyTree:{i} {pft}")
+                            for i,oc in enumerate(overChild):
+                                print(f"{el} overChild:{i} {oc}")
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
@@ -466,10 +472,11 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} new peakCandidates:{pci} {pc}")
 # 時間測定
-        td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/timestamp.csv","a") as f:
-            csv.writer(f).writerow([el,"check familyTree",td.microseconds])
-        start=datetime.datetime.now()
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"check familyTree",td.microseconds])
+            start=datetime.datetime.now()
 #
     # 最後、1番標高の高いピークをpeakColProminenceに登録する
     colList=[list(zip(*np.where(elevs==elevs.min())))]
@@ -522,9 +529,6 @@ def main(filePath="tile/tile.png", verbose=False, debug=False):
     fig, ax = plt.subplots()
     fig.set_size_inches(16.53 * 2, 11.69 * 2)
 #
-    from matplotlib.colors import LightSource
-    import matplotlib.cm as cm
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
     ls = LightSource(azdeg=180, altdeg=90)
     rgb = ls.shade(elevs, cm.rainbow)
     cs = ax.imshow(elevs)
@@ -548,7 +552,8 @@ if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv
     if len(args)>1:
-        main(filePath=args[1])
+        myname=args.pop(0)
+        main(*args)
     else:
         print("pngファイルを指定してください")
-    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
+    print(f"{myname}: Finished @{datetime.datetime.now()}")
