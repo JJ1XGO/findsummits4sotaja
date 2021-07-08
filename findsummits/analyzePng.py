@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from concurrent.futures import ProcessPoolExecutor
+#from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 # 設定ファイル読み込み
 config=configparser.ConfigParser()
@@ -27,11 +27,11 @@ def png2elevs(filePath):
     # RGBから標高地を計算: x = 2**16R + 2**8G + B
     # openCVではGBRの順番になるので注意
     elevs0=img[:, :, 2].copy()*np.power(2,16)+img[:, :, 1].copy()*np.power(2,8)+img[:, :, 0].copy()
-    elevs=np.where(elevs0<2**23, elevs0/100, elevs0)           # x < 223の場合　h = xu
+    elevs=np.where(elevs0<2**23, elevs0/100, elevs0)            # x < 223の場合　h = xu
     elevs0=elevs
-    elevs=np.where(elevs0==2**23, np.nan, elevs0)              # x = 223の場合　h = NA
+    elevs=np.where(elevs0==2**23, 0, elevs0)                    # x = 223の場合　h = NA 取り敢えず0とする
     elevs0=elevs
-    elevs=np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)   # x > 223の場合　h = (x-224)u
+    elevs=np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)    # x > 223の場合　h = (x-224)u
     return elevs
 # ピークを見つけ出す
 def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを見つけ出す
@@ -47,48 +47,49 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
-    imageHeightWidth=[es for es in elevs.shape]
-    print(f"image height:{imageHeightWidth[0]} width:{imageHeightWidth[1]}")
+#    imageHeightWidth=[es for es in elevs.shape]
+    print(f"image height:{elevs.shape[0]} width:{elevs.shape[1]}")
 # ピーク(候補)の一覧作成
-    peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
-    peakCandidates.sort(key=itemgetter(0,1), reverse=True)
-    uniqPeakCandidates=[]
-    pcCnt=0
-    prepc=[]    # numba用
-    for pc in peakCandidates:
-        # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
-        if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-            continue
-        if pc[1][1]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][1]>=imageHeightWidth[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-            continue
-        # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
-        if pcCnt != 0:
-            # 同じ標高で座標が1違いだったら1番大きい座標を採用
-            if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
-                continue
-        uniqPeakCandidates.append(pc)
-        pcCnt+=1
-        prepc=pc
-    # 処理スピード対策。
-    # peakCandidatesをそのまま使っていると件数が大量になった時にパフォーマンスが落ちるので、
-    # dequeに入れてpeakCandidatesには必要な分だけを入れておく様にする。
-    peakCandidatesDq=collections.deque()
-    peakCandidatesDq.extend(uniqPeakCandidates)
-#    peakCandidates=uniqPeakCandidates
-#    del uniqPeakCandidates
-#    for i,pc in enumerate(peakCandidates):
-    for i,pc in enumerate(uniqPeakCandidates):
-        print(f"peakCandidates:{i} {pc}")
+    peakCandidates=[]
+#    peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
+#    peakCandidates.sort(key=itemgetter(0,1), reverse=True)
+#    uniqPeakCandidates=[]
+#    pcCnt=0
+#    prepc=[]    # numba用
+#    for pc in peakCandidates:
+#        # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
+#        if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+#            continue
+#        if pc[1][1]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][1]>=imageHeightWidth[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+#            continue
+#        # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
+#        if pcCnt != 0:
+#            # 同じ標高で座標が1違いだったら1番大きい座標を採用
+#            if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
+#                continue
+#        uniqPeakCandidates.append(pc)
+#        pcCnt+=1
+#        prepc=pc
+#    # 処理スピード対策。
+#    # peakCandidatesをそのまま使っていると件数が大量になった時にパフォーマンスが落ちるので、
+#    # dequeに入れてpeakCandidatesには必要な分だけを入れておく様にする。
+#    peakCandidatesDq=collections.deque()
+#    peakCandidatesDq.extend(uniqPeakCandidates)
+##    peakCandidates=uniqPeakCandidates
+##    del uniqPeakCandidates
+##    for i,pc in enumerate(peakCandidates):
+#    for i,pc in enumerate(uniqPeakCandidates):
+#        print(f"peakCandidates:{i} {pc}")
 #    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
-    assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
-    del uniqPeakCandidates
+#    assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
+#    del uniqPeakCandidates
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
-    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}, {len(elvslist)} steps will be analyzed")
+    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, {len(elvslist)} steps will be analyzed")
 #
-    peakCandidates=[peakCandidatesDq.popleft()] # 最初の候補者を入れておく
-    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
-    endOfCandidate=False
+#    peakCandidates=[peakCandidatesDq.popleft()] # 最初の候補者を入れておく
+#    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
+#    endOfCandidate=False
     peakColProminence=[]
 # 時間測定
     if processtimelog:
@@ -96,18 +97,18 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
             csv.writer(f).writerow(["el","func","microseconds"])
 #
     for el in tqdm(elvslist):
-        # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
-        if not endOfCandidate:  # ピーク候補者がまだいれば
-            while pcpdq[0]>=el: # スタンバイしている候補者が今の標高以上なら
-                peakCandidates.append(pcpdq)    # peakCandidatesに追加
-                if len(peakCandidatesDq)>0:     # 候補者がまだいれば
-                    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
-                else:   # いなくなったら終了
-                    endOfCandidate=True
-                    break
-        # ピーク(候補)が1つだけなら次が出てくるまで飛ばして良い
-        if len(peakCandidates)==1:
-            continue
+#        # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
+#        if not endOfCandidate:  # ピーク候補者がまだいれば
+#            while pcpdq[0]>=el: # スタンバイしている候補者が今の標高以上なら
+#                peakCandidates.append(pcpdq)    # peakCandidatesに追加
+#                if len(peakCandidatesDq)>0:     # 候補者がまだいれば
+#                    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
+#                else:   # いなくなったら終了
+#                    endOfCandidate=True
+#                    break
+#        # ピーク(候補)が1つだけなら次が出てくるまで飛ばして良い
+#        if len(peakCandidates)==1:
+#            continue
 #        debug = True if el==2674.02 else False
 # 時間測定
         if processtimelog:
@@ -166,7 +167,8 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
         # 先ずは何世代までいるか確認
         nextHrrchy=0
         genCnt=0
-        for hrrchy in hierarchyList:
+#        for hrrchy in hierarchyList:
+        for hi,hrrchy in enumerate(hierarchyList):
             if hrrchy[2]!= -1:  # 子供がいたら次の人へ
                 continue
             genCntt=1
@@ -176,6 +178,56 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 nextHrrchy=hierarchyList[nextHrrchy[3]]
             if genCnt < genCntt:
                 genCnt=genCntt
+            # 親もいなければピーク候補にいるか確認
+            if hrrchy[3]==-1:
+                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+                for pc in peakCandidates:
+                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば何もしない
+                        break
+                else:   # なければピーク候補に入れる
+                    contpointList=[]
+                    for cl in contpointSet:
+                        if debug:
+                            print(f"{el} borderline check:{cl}")
+                        # 外枠近辺で見つかったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
+                        if cl[0]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                            continue
+                        elif cl[0]>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                            continue
+                        elif cl[1]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                            continue
+                        elif cl[1]>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                            continue
+                        contpointList.append(cl)
+                        if debug:
+                            print(f"{el} borderline check pass:{cl}")
+                    if debug:
+                        print(f"{el} contpointList:{contpointList}")
+                    if len(peakCandidates)==0:  # 初回はそのまま通す
+                        contpointList2=contpointList
+                    else:
+                        # 些細なピークも拾ってしまうため、既にピーク候補に登録されている近くのピークだったら落選させる
+                        contpointList2=[]
+                        if len(contpointList)>0:
+                            for pc in peakCandidates:
+                                if debug:
+                                    print(f"{el} filter size check:{pc}")
+                                for cl in contpointList:
+                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
+                                    and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
+                                        break
+                                else:
+                                    continue
+                                break
+                            else:
+                                # 1次審査を全て突破した人だけピーク候補にノミネート
+                                contpointList2.append(cl)
+                                if debug:
+                                    print(f"{el} filter size check pass:{cl}")
+                    #print(f"{el} contpointList2:{contpointList2}")
+                    if len(contpointList2)>0:    # 残った座標があれば
+                        contpointList2.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
+                        peakCandidates.append((el,contpointList2[0])) # 1番先頭をピーク候補に追加
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -183,10 +235,16 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 csv.writer(f).writerow([el,"generation check",td.microseconds])
             start=datetime.datetime.now()
 #
-        #親世代だけだったら子供が出てくるまで飛ばす
         if debug:
             print(f"{el} 世代階層:{genCnt}")
+        if debug:
+            for pci,pc in enumerate(peakCandidates):
+                print(f"{el} peakCandidates:{pci} {pc}")
+        #親世代だけだったら子供が出てくるまで飛ばす
         if genCnt==1:
+            continue
+        # ピーク候補が1人以下だったら次が出てくるまで飛ばす
+        if len(peakCandidates)<=1:
             continue
         # 家系図を作成
         familyTree=[None]*len(hierarchyList)    # 必要な数だけ最初に配列作っておく
@@ -389,7 +447,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                             print(f"childId:{oc[0]} try to find col for peakCandidatesId:{oc[4]}")
                         # 座標の接点を探す
                         # 当初は輪郭線内側に接点があると思っていたが、実際にやってみると
-                        # 親の輪郭線にしか接点が存在しない。上の処理は余計なのでヤメ。
+                        # 親の輪郭線にしか接点が存在しないケースが殆ど。
                         # 親の座標の中に今の標高と一致する座標がある筈なのでそれを抜き出す。
                         for ct in contours[overChild[0][0]]:
                             if elevs[ct[0][1],ct[0][0]] == el:
@@ -442,14 +500,17 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                             #cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                             #cv2.imwrite(f"test/{el}.png",contimg)
                             #print(f"contours:{contours}")
-                            print(f"{el} hierarchy:{hierarchyList}")
+                            for i,hl in enumerate(hierarchyList):
+                                print(f"{el} hierarchy:{i} {hl}")
                             for i,pft in enumerate(familyTree):
                                 print(f"{el} familyTree:{i} {pft}")
                             for i,oc in enumerate(overChild):
                                 print(f"{el} overChild:{i} {oc}")
-                            print(f"{el} peakId:{oc[4]} colList:{colList}")
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
+                            print(f"{el} peakId:{oc[4]} colList:{colList}")
+                            for oc in overChild:
+                                print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
                             print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                             assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
                         if debug:
@@ -550,10 +611,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
 #---
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
-    args = sys.argv
-    if len(args)>1:
-        myname=args.pop(0)
+    args = sys.argv[1:]
+    if len(args)>0:
         main(*args)
     else:
         print("pngファイルを指定してください")
-    print(f"{myname}: Finished @{datetime.datetime.now()}")
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
