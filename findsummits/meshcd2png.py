@@ -76,7 +76,7 @@ def getHighLvlTilePoint(z, tileX, tileY, pointY, pointX, difflvl):
     highlvltileY=int((pixy/denomin)/config["VAL"].getint("PIX"))
     highlvlpointY=int((pixy/denomin)%config["VAL"].getint("PIX"))
     return (z-difflvl, highlvltileX, highlvltileY, highlvlpointY, highlvlpointX)
-# 与えられた座標に対応する(dtlZoomLvl-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
+# 与えられた座標に対応する(config["VAL"].getint("ZOOM_LVL")-1)レベルの地理院地図タイル画像を取得し、imageと画像内の開始座標を返す
 def fetch_rough_tile(z, x, y):
     # 1レベル上のタイル座標を求める
     (highlvlz, tileX, tileY, pointY, pointX)=getHighLvlTilePoint(z, x, y, 0, 0, 1)
@@ -90,8 +90,8 @@ def fetch_rough_tile(z, x, y):
     if res.status_code == 200:
         img = Image.open(io.BytesIO(res.content))
     else:
-        print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
-        print("return N/A image")
+#        print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
+#        print("return N/A image")
         img = Image.new("RGB",(256, 256),(128,0,0))
     return img, z-1, tileX, tileY, pointX, pointY
 # 与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
@@ -153,35 +153,42 @@ def fetch_scope_tiles(north_west, south_east):
             ],axis=1) for y in range(len(y_range))
         ],axis=0)
 #-------------Main---------------------------------
-def main():
+def main(meshcd,arg2=""):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
-    mesh1=args[1][0:4]
-    wkstartmesh1=str(int(mesh1)+100)
-    wkendmesh1=str(int(mesh1)+1)
-    (start_lat,start_lon)=mesh2latlon(wkstartmesh1)
-    print(start_lat, start_lon)
-    (end_lat,end_lon)=mesh2latlon(wkendmesh1)
-    print(end_lat, end_lon)
-    (startTileX, startTileY, _, _)=latlon2tilePixel(start_lat, start_lon, dtlZoomLvl)
-    print(startTileX,startTileY)
-    (endTileX, endTileY, _, _)=latlon2tilePixel(end_lat, end_lon, dtlZoomLvl)
-    print(endTileX,endTileY)
+    # 最北西と再南東の緯度/経度を得るため該当するメッシュコードを求める
+    if len(meshcd)==4:
+        mesh=int(meshcd)
+        startMesh=mesh+100
+        endMesh=mesh+1
+    elif len(meshcd)==6:
+        mesh=int(meshcd)
+        # 8進だからややこしいけど、計算式はコレ
+        startMesh=mesh+(mesh%100//10+4)//8*10000+(1-2*((mesh%100//10+4)//8))*40
+        endMesh=mesh+(mesh%10+4)//8*100+(1-2*((mesh%10+4)//8))*4
+#    print(startMesh,endMesh)
+    (start_lat,start_lon)=mesh2latlon(startMesh)
+    (end_lat,end_lon)=mesh2latlon(endMesh)
+    print(f"NorthWest:({start_lat}, {start_lon}) SouthEast:({end_lat}, {end_lon})")
+    (startTileX, startTileY, _, _)=latlon2tilePixel(start_lat, start_lon, config["VAL"].getint("ZOOM_LVL"))
+    (endTileX, endTileY, _, _)=latlon2tilePixel(end_lat, end_lon, config["VAL"].getint("ZOOM_LVL"))
+    print(f'startTile:{config["VAL"].getint("ZOOM_LVL")}/{startTileX}/{startTileY} endTile:{config["VAL"].getint("ZOOM_LVL")}/{endTileX}/{endTileY}')
 
-    scope_tile = fetch_scope_tiles((dtlZoomLvl,startTileX,startTileY), (dtlZoomLvl,endTileX,endTileY))
+    scope_tile = fetch_scope_tiles((config["VAL"].getint("ZOOM_LVL"),startTileX,startTileY), (config["VAL"].getint("ZOOM_LVL"),endTileX,endTileY))
     print(scope_tile.shape)
     img_scope_tile = Image.fromarray(scope_tile)
     os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
-    result=f"{config['DIR']['TILE']}/{args[1]}-00_{dtlZoomLvl}-{startTileX}-{startTileY}_{dtlZoomLvl}-{endTileX}-{endTileY}.png"
+    result=f'{config["DIR"]["TILE"]}/{mesh}-00_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
     img_scope_tile.save(result)
 
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
+    return result
 #---
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
-    args = sys.argv
-    if len(args)>1:
-        main()
+    args = sys.argv[1:]
+    if len(args)>0:
+        ret=main(*args)
     else:
-        print("1次メッシュ番号を指定してください")
+        print("2次メッシュ番号を指定してください")
     print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
