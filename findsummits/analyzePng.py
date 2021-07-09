@@ -192,11 +192,11 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                         # 外枠近辺で見つかったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
                         if cl[0]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        elif cl[0]>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[0]>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        elif cl[1]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[1]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        elif cl[1]>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[1]>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
                         contpointList.append(cl)
                         if debug:
@@ -213,8 +213,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                                 if debug:
                                     print(f"{el} filter size check:{pc}")
                                 for cl in contpointList:
-                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
-                                    and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
+                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE"):
+                                        break
+                                    if abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
                                         break
                                 else:
                                     continue
@@ -338,7 +339,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                     g3gChildCnt*(10**((genCnt-5)*2))+\
                     g4gChildCnt*(10**((genCnt-6)*2))))
             # 最初に用意しておいた配列に入れる。この段階で次に必要な配列も用意しておく
-            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,None,None,None]
+            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,None,None,None,None]
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -359,6 +360,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                     # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
                     familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
                     familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
+                    familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1] if len(foundPeaksCandidate)!=0 else None
                 parentIdx=ft[0]
                 peakCnt=0
                 foundPeaksCandidate=[]
@@ -379,9 +381,11 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                             familyTree[childIdx][3]=1       # ピーク候補の数
                             familyTree[childIdx][4]=pci     # ピーク候補の何番目か
                             familyTree[childIdx][5]=pc[0]   # ピーク候補の標高
+                            familyTree[childIdx][6]=pc[1]   # ピーク候補の座標
                         ft[3]=1     # ピーク候補の数(1)
                         ft[4]=pci   # ピーク候補の何番目か
                         ft[5]=pc[0] # ピーク候補の標高
+                        ft[6]=pc[1] # ピーク候補の座標
                         break
                 else:   # 見つからなかったら
                     ft[3]=0          # ピーク候補の数(0)
@@ -396,6 +400,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
             # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
             familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
             familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
+            familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1] if len(foundPeaksCandidate)!=0 else None
 # (2804.51, (183, 420))
 #        for ft in familyTree:
 #            if ft[5]==2804.51:
@@ -431,9 +436,12 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 for oc in overChild:
                     print(f"overChild:{el} {oc}")
             for oci,oc in enumerate(overChild):    # 自分と子だけの家系図を舐める
+                if not peakCandidate2peakSw:    # 前にいる子がピークを消してたら以下処理しない
+                    continue
                 if oci==0:
                     compPcId=oc[4]
                     compPcElvs=oc[5]
+                    compPcCrd=oc[6]
                 else:
                     if findColFb==0 and oc[3]>0:
                         if oc[4]==compPcId: # 先に親と同じピーク候補が来たかどうか
@@ -477,11 +485,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                             colList=list(colSet)
                         if len(colList)>1:  # コル座標が複数ある時
                             # 通常はピークとピークの間にあると思うので、2つのピークそれぞれに最も近いコルを採用。
-                            compPcCrd=peakCandidates[compPcId][1]
-                            pcCrd=peakCandidates[oc[4]][1]
                             newColList=[]
                             for cli,cl in enumerate(colList):
-                                dist=math.sqrt((pcCrd[0]-cl[0])**2+(pcCrd[1]-cl[1])**2)+math.sqrt((compPcCrd[0]-cl[0])**2+(compPcCrd[1]-cl[1])**2)
+                                dist=math.sqrt((oc[6][0]-cl[0])**2+(oc[6][1]-cl[1])**2)+math.sqrt((compPcCrd[0]-cl[0])**2+(compPcCrd[1]-cl[1])**2)
                                 if cli==0:
                                     holdcli=cli
                                     holddist=dist
@@ -517,7 +523,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
                         # ピーク候補の更新
                         for pci,pc in enumerate(peakCandidates):
-                            if oc[4]==pci and oc[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
+                            #if oc[4]==pci and oc[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
+                            # 同じ標高で先に誰かが先に消しているとインデックスが合わなくなるので、標高と座標に変更。座標だけでも良いと思うが念の為
+                            if oc[5]==pc[0] and oc[6]==pc[1]:
                                 popPc=peakCandidates.pop(pci)   # ピーク候補から削除
                                 # peakColProminenceに追加
                                 prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
@@ -529,6 +537,21 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                                 peakColProminence.append((popPc,(el,colList[0]),prominence))
                                 # ピーク候補の更新が終わったらスイッチを元に戻す
                                 peakCandidate2peakSw=False
+                                break
+                        else:
+                            for i,hl in enumerate(hierarchyList):
+                                print(f"{el} hierarchy:{i} {hl}")
+                            for i,pft in enumerate(familyTree):
+                                print(f"{el} familyTree:{i} {pft}")
+                            for i,oc in enumerate(overChild):
+                                print(f"{el} overChild:{i} {oc}")
+                            for pci,pc in enumerate(peakCandidates):
+                                print(f"{el} peakCandidates:{pci} {pc}")
+                            print(f"{el} peakId:{oc[4]} colList:{colList}")
+                            for oc in overChild:
+                                print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                            print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
+                            assert False, "コルの見つかったピーク候補がpeakCandidates内に見当たらない。内容要確認"
                         if debug:
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} new peakCandidates:{pci} {pc}")

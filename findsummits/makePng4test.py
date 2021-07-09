@@ -23,7 +23,7 @@ def main(args):
         m=0
     else:
         m=int(args[2])
-    lon,lat=config["COORD"][f"{args[1]}"].split(",")
+    lat,lon=config["COORD"][f"{args[1]}"].split(",")
     (tileX, tileY, pointY, pointX)=m2p.latlon2tilePixel(float(lat), float(lon), config["VAL"].getint("ZOOM_LVL"))
     print(f'{args[1]} pixel coordinate:{config["VAL"].getint("ZOOM_LVL")}/{tileX}/{tileY} ({pointX}, {pointY})')
     scope_tile = m2p.fetch_scope_tiles((config["VAL"].getint("ZOOM_LVL"), tileX-m, tileY-m), (config["VAL"].getint("ZOOM_LVL"), tileX+m, tileY+m))  # 指定タイルを中心にした(m*2+1)**2タイル
