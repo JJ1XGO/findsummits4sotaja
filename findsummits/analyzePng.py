@@ -178,6 +178,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 nextHrrchy=hierarchyList[nextHrrchy[3]]
             if genCnt < genCntt:
                 genCnt=genCntt
+            # 以下はピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
+            if el<config["VAL"].getint("MINIMUM_PROMINENCE"):
+                continue
             # 親もいなければピーク候補にいるか確認
             if hrrchy[3]==-1:
                 contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
@@ -213,9 +216,8 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                                 if debug:
                                     print(f"{el} filter size check:{pc}")
                                 for cl in contpointList:
-                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE"):
-                                        break
-                                    if abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
+                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
+                                    and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
                                         break
                                 else:
                                     continue
@@ -631,7 +633,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
     plt.savefig(f'{config["DIR"]["IMAGE"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf', bbox_inches="tight")
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
-#---
+#
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv[1:]
