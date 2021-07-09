@@ -92,7 +92,10 @@ def fetch_rough_tile(z, x, y):
     else:
 #        print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
 #        print("return N/A image")
-        img = Image.new("RGB",(256, 256),(128,0,0))
+#        img = Image.new("RGB",(256, 256),(128,0,0))
+        # こちらの方が倍以上速い
+        img = np.zeros((256,256,3),dtype=np.uint8)
+        img[:, :, 0]=128
     return img, z-1, tileX, tileY, pointX, pointY
 # 与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
 def fetch_tile(z, x, y):
