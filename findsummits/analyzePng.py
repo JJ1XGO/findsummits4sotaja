@@ -32,6 +32,9 @@ def png2elevs(filePath):
     elevs=np.where(elevs0==2**23, 0, elevs0)                    # x = 223の場合　h = NA 取り敢えず0とする
     elevs0=elevs
     elevs=np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)    # x > 223の場合　h = (x-224)u
+    elevs0=elevs
+    elevs=np.where(elevs0<0, 0, elevs0) # マイナス標高は全て0とする
+    del elevs0
     return elevs
 # ピークを見つけ出す
 def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを見つけ出す
@@ -43,7 +46,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main(filePath, verbose=False, debug=False, processtimelog=False):
+def main(filePath, debug=False, processtimelog=False):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
@@ -114,8 +117,6 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
         if processtimelog:
             start=datetime.datetime.now()
 #
-        if verbose:
-            print(f"analyzing elevation {el} m")
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
         img=np.zeros(elevs.shape,dtype=np.uint8)
@@ -358,11 +359,33 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 if ft[0]==0:
                     pass
                 else:   # 1つ前の親の情報を更新
-                    familyTree[parentIdx][3]=peakCnt
-                    # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
-                    familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
-                    familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
-                    familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1] if len(foundPeaksCandidate)!=0 else None
+                    # ピークと思われる親の時
+                    if familyTree[parentIdx][2]=="maybe a peak":
+                        # 輪郭線を構成する座標の一覧を作成
+                        # 内側にある座標は出力されない様なので補完する
+                        cpl=[contpoint[0].tolist() for contpoint in contours[parentIdx]]
+#                        cpl0=[for cpl in cpl]
+                        contpointSet={(cp0[0],cp1[1]) for cp0 in cpl for cp1 in cpl}
+                        for pci,pc in enumerate(peakCandidates):
+                            if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
+                                if debug:
+                                    print(f"found peak candidate! {ft[0]}　({pci} {pc})")
+                                familyTree[parentIdx][2]="peak"
+                                familyTree[parentIdx][3]=1     # ピーク候補の数(1)
+                                familyTree[parentIdx][4]=pci   # ピーク候補の何番目か
+                                familyTree[parentIdx][5]=pc[0] # ピーク候補の標高
+                                familyTree[parentIdx][6]=pc[1] # ピーク候補の座標
+                                break
+                        else:   # 見つからなかったら
+                            familyTree[parentIdx][3]=0          # ピーク候補の数(0)
+                            familyTree[parentIdx][4]=-1         # ピーク候補の何番目か(-1)
+                            familyTree[parentIdx][5]=-1         # ピーク候補の標高(-1)
+                    else:   # それ以外(外側の輪郭線)
+                        familyTree[parentIdx][3]=peakCnt
+                        # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
+                        familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
+                        familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
+                        familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1] if len(foundPeaksCandidate)!=0 else None
                 parentIdx=ft[0]
                 peakCnt=0
                 foundPeaksCandidate=[]
@@ -411,6 +434,9 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
 #        else:
 #            debug=False
 #
+        if debug:
+            for ft in familyTree:
+                print(el,ft)
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -418,9 +444,17 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                 csv.writer(f).writerow([el,"update familyTree",td.microseconds])
             start=datetime.datetime.now()
 #
-        if debug:
-            for ft in familyTree:
-                print(el,ft)
+        # 家系図が出来上がった時点で、家系図に座標が載っていないピーク候補は
+        # 既に輪郭線に飲み込まれた些細なピークなので2次審査不合格
+        pcCordSet={ft[6] for ft in familyTree if ft[6] is not None and ft[6]!=-1}
+        peakCandidates=[pc for pc in peakCandidates if pc[1] in pcCordSet]
+# 時間測定
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"update peakCandidates",td.microseconds])
+            start=datetime.datetime.now()
+#
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
         for ft in familyTree:
             if int(ft[1])%(10**((genCnt-1)*2)) != 0: # 親じゃなければ次の人
@@ -531,7 +565,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
                                 popPc=peakCandidates.pop(pci)   # ピーク候補から削除
                                 # peakColProminenceに追加
                                 prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
-                                if verbose:
+                                if debug:
                                     if prominence >= config["VAL"].getint("MINIMUM_PROMINENCE"):
                                         print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(el,colList[0][0])} prominence:{prominence}")
                                     else:
@@ -588,7 +622,7 @@ def main(filePath, verbose=False, debug=False, processtimelog=False):
     popPc=peakCandidates.pop(0)   # ピーク候補から削除
     # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
     prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
-    if verbose:
+    if debug:
         if prominence >= config["VAL"].getint("MINIMUM_PROMINENCE"):
             print(f"found peak! that matches SOTA-JA criteria. peak:{popPc} col:{(elevs.min(),colList[0][0])} prominence:{prominence}")
         else:
