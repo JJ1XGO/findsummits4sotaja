@@ -46,7 +46,7 @@ def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを�
     peaks_index = np.where(temp.mask != True)
     return list(zip(*np.where(temp.mask != True)))
 #
-def main(filePath, debug=False, processtimelog=False):
+def main(filePath, debug=True, processtimelog=False):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
@@ -54,45 +54,10 @@ def main(filePath, debug=False, processtimelog=False):
     print(f"image height:{elevs.shape[0]} width:{elevs.shape[1]}")
 # ピーク(候補)の一覧作成
     peakCandidates=[]
-#    peakCandidates=[(elevs[yy][xx],(xx,yy)) for yy,xx in detectPeaksCoords(elevs)]
-#    peakCandidates.sort(key=itemgetter(0,1), reverse=True)
-#    uniqPeakCandidates=[]
-#    pcCnt=0
-#    prepc=[]    # numba用
-#    for pc in peakCandidates:
-#        # 外枠近辺で見つったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
-#        if pc[1][0]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][0]>=imageHeightWidth[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-#            continue
-#        if pc[1][1]<=config["VAL"].getint("CANDIDATE_BORDERLINE") or pc[1][1]>=imageHeightWidth[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-#            continue
-#        # 重複排除(dem10から取った標高は2*2の4ピクセルが固まっているので)
-#        if pcCnt != 0:
-#            # 同じ標高で座標が1違いだったら1番大きい座標を採用
-#            if prepc[0]==pc[0] and abs(prepc[1][0]-pc[1][0])<=1 and abs(prepc[1][1]-pc[1][1])<=1:
-#                continue
-#        uniqPeakCandidates.append(pc)
-#        pcCnt+=1
-#        prepc=pc
-#    # 処理スピード対策。
-#    # peakCandidatesをそのまま使っていると件数が大量になった時にパフォーマンスが落ちるので、
-#    # dequeに入れてpeakCandidatesには必要な分だけを入れておく様にする。
-#    peakCandidatesDq=collections.deque()
-#    peakCandidatesDq.extend(uniqPeakCandidates)
-##    peakCandidates=uniqPeakCandidates
-##    del uniqPeakCandidates
-##    for i,pc in enumerate(peakCandidates):
-#    for i,pc in enumerate(uniqPeakCandidates):
-#        print(f"peakCandidates:{i} {pc}")
-#    assert len(peakCandidates)>0, "ピーク候補が見当たらない。内容要確認(pngが小さ過ぎるかも)"
-#    assert len(uniqPeakCandidates)>1, "ピーク候補が少な過ぎ。内容要確認(pngが小さ過ぎるかも)"
-#    del uniqPeakCandidates
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, {len(elvslist)} steps will be analyzed")
 #
-#    peakCandidates=[peakCandidatesDq.popleft()] # 最初の候補者を入れておく
-#    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
-#    endOfCandidate=False
     peakColProminence=[]
 # 時間測定
     if processtimelog:
@@ -100,19 +65,6 @@ def main(filePath, debug=False, processtimelog=False):
             csv.writer(f).writerow(["el","func","microseconds"])
 #
     for el in tqdm(elvslist):
-#        # peakCandidatesに必要な候補者をpeakCandidatesDqから取り出して舞台に送り出す
-#        if not endOfCandidate:  # ピーク候補者がまだいれば
-#            while pcpdq[0]>=el: # スタンバイしている候補者が今の標高以上なら
-#                peakCandidates.append(pcpdq)    # peakCandidatesに追加
-#                if len(peakCandidatesDq)>0:     # 候補者がまだいれば
-#                    pcpdq=peakCandidatesDq.popleft()    # 次の候補者スタンバイ
-#                else:   # いなくなったら終了
-#                    endOfCandidate=True
-#                    break
-#        # ピーク(候補)が1つだけなら次が出てくるまで飛ばして良い
-#        if len(peakCandidates)==1:
-#            continue
-#        debug = True if el==2674.02 else False
 # 時間測定
         if processtimelog:
             start=datetime.datetime.now()
@@ -252,6 +204,7 @@ def main(filePath, debug=False, processtimelog=False):
             continue
         # 家系図を作成
         familyTree=[None]*len(hierarchyList)    # 必要な数だけ最初に配列作っておく
+        rejPeakCandidates=[]
         parentCnt=0
         for hi,hrrchy in enumerate(hierarchyList):
             if hrrchy[3]== -1:  # 親だったら(親がいないのが親)
@@ -341,8 +294,36 @@ def main(filePath, debug=False, processtimelog=False):
                     g2gChildCnt*(10**((genCnt-4)*2))+\
                     g3gChildCnt*(10**((genCnt-5)*2))+\
                     g4gChildCnt*(10**((genCnt-6)*2))))
-            # 最初に用意しておいた配列に入れる。この段階で次に必要な配列も用意しておく
-            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,None,None,None,None]
+            # ピーク候補の情報を付加する
+            # 輪郭線を構成する座標の一覧を作成
+            cpSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+            for pci,pc in enumerate(peakCandidates):
+                if pc[1] in cpSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
+                    if debug:
+                        print(f"found peak candidate! {fNumber}　({pci} {pc})")
+                    if selfGeneration==1:   # 親
+                        if hrrchy[2] == -1: # 子供がいなければおそらくピーク
+                            hclass="peak"
+                        else:
+                            hclass="contour outside incld/peak" # 子供がいれば等高線の外枠
+                            ## 子がいる親の輪郭線にピーク候補の座標が現れたらその時点で落選確定
+                            #rejPeakCandidates.append(pc[1])
+                    if selfGeneration==2:   # 子
+                        hclass="contour inside incld/peak"
+                    if selfGeneration==3:   # 孫
+                        hclass="peak"
+                    pcCnt=1         # ピーク候補の数(1)
+                    pcNo=pci        # ピーク候補の何番目か
+                    pcAlt=pc[0]     # ピーク候補の標高
+                    pcCord=pc[1]    # ピーク候補の座標
+                    break
+            else:   # 見つからなかったら
+                pcCnt=0         # ピーク候補の数(1)
+                pcNo=-1         # ピーク候補の何番目か
+                pcAlt=None      # ピーク候補の標高
+                pcCord=None     # ピーク候補の座標
+            # 最初に用意しておいた配列に入れる
+            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,pcCnt,pcNo,pcAlt,pcCord]
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -353,73 +334,49 @@ def main(filePath, debug=False, processtimelog=False):
         if debug:
             for ft in familyTree:
                 print(el,ft)
-        # 家系図にピーク候補の情報追加
+        # 家系図の情報整理
         for ft in familyTree:
             if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
                 if ft[0]==0:
                     pass
                 else:   # 1つ前の親の情報を更新
-                    # ピークと思われる親の時
-                    if familyTree[parentIdx][2]=="maybe a peak":
-                        # 輪郭線を構成する座標の一覧を作成
-                        # 内側にある座標は出力されない様なので補完する
-                        cpl=[contpoint[0].tolist() for contpoint in contours[parentIdx]]
-#                        cpl0=[for cpl in cpl]
-                        contpointSet={(cp0[0],cp1[1]) for cp0 in cpl for cp1 in cpl}
-                        for pci,pc in enumerate(peakCandidates):
-                            if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
-                                if debug:
-                                    print(f"found peak candidate! {ft[0]}　({pci} {pc})")
-                                familyTree[parentIdx][2]="peak"
-                                familyTree[parentIdx][3]=1     # ピーク候補の数(1)
-                                familyTree[parentIdx][4]=pci   # ピーク候補の何番目か
-                                familyTree[parentIdx][5]=pc[0] # ピーク候補の標高
-                                familyTree[parentIdx][6]=pc[1] # ピーク候補の座標
-                                break
-                        else:   # 見つからなかったら
-                            familyTree[parentIdx][3]=0          # ピーク候補の数(0)
-                            familyTree[parentIdx][4]=-1         # ピーク候補の何番目か(-1)
-                            familyTree[parentIdx][5]=-1         # ピーク候補の標高(-1)
-                    else:   # それ以外(外側の輪郭線)
-                        familyTree[parentIdx][3]=peakCnt
-                        # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
-                        familyTree[parentIdx][4]=min(foundPeaksCandidate) if len(foundPeaksCandidate)!=0 else -1
-                        familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0] if len(foundPeaksCandidate)!=0 else -1
-                        familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1] if len(foundPeaksCandidate)!=0 else None
+                    if hierarchyList[parentIdx][2]==-1:
+                        pass    # 子がいなかったら更新しない
+                    else:
+                        if len(foundPeaksCandidate)!=0:
+                            familyTree[parentIdx][3]=peakCnt
+                            # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
+                            familyTree[parentIdx][4]=min(foundPeaksCandidate)
+                            familyTree[parentIdx][5]=peakCandidates[familyTree[parentIdx][4]][0]
+                            familyTree[parentIdx][6]=peakCandidates[familyTree[parentIdx][4]][1]
                 parentIdx=ft[0]
                 peakCnt=0
                 foundPeaksCandidate=[]
             else:   # 親以外
-                # 輪郭線を構成する座標の一覧を作成
-                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[ft[0]]}
-                for pci,pc in enumerate(peakCandidates):
-                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
-                        if debug:
-                            print(f"found peak candidate! {ft[0]}　({pci} {pc})")
-                        if int(ft[1])%(10**((genCnt-2)*2)) == 0: # 子だったら輪郭線内側
-                            ft[2]="contour inside incld/peak"
-                        else:   # 孫だったらピーク
-                            ft[2]="peak"
-                            # 自分(孫)の親(=子)の情報を書き換える
-                            childIdx=hierarchyList[ft[0]][3]
-                            familyTree[childIdx][2]="contour inside (my child is a peak)"
-                            familyTree[childIdx][3]=1       # ピーク候補の数
-                            familyTree[childIdx][4]=pci     # ピーク候補の何番目か
-                            familyTree[childIdx][5]=pc[0]   # ピーク候補の標高
-                            familyTree[childIdx][6]=pc[1]   # ピーク候補の座標
-                        ft[3]=1     # ピーク候補の数(1)
-                        ft[4]=pci   # ピーク候補の何番目か
-                        ft[5]=pc[0] # ピーク候補の標高
-                        ft[6]=pc[1] # ピーク候補の座標
-                        break
+                # ピーク候補の番号が今回初めてだったら
+                if ft[3]==1 and ft[4] not in foundPeaksCandidate:
+                    foundPeaksCandidate.append(ft[4]) # 見つけたピーク候補の番号を控えておく
+                    peakCnt+=1  # 見つけたピーク数をカウントアップ
+                    if int(ft[1])%(10**((genCnt-2)*2)) == 0:    # 子だったら
+                        pass    # 何もしない
+                    else:   # 孫だったら自分の親(=子)の情報を書き換える
+                        childIdx=hierarchyList[ft[0]][3]
+                        # 子にピーク候補の情報がない、もしくは子のピーク候補Noの方が自分(孫)のピーク候補No以上の時
+                        if familyTree[childIdx][4]==-1 or familyTree[childIdx][4]>ft[4]:
+                            if familyTree[childIdx][4]!=-1:
+                                rejPeakCandidates.append(familyTree[childIdx][6])
+                            familyTree[childIdx][2]="contour inside (my child is a peak)"    # 簡単な説明
+                            familyTree[childIdx][3]+=1      # ピーク候補の数(+1)
+                            familyTree[childIdx][4]=ft[4]   # ピーク候補の何番目か
+                            familyTree[childIdx][5]=ft[5]   # ピーク候補の標高
+                            familyTree[childIdx][6]=ft[6]   # ピーク候補の座標
+                        else:   # それ以外はあり得ないが、あった時はピーク候補から落選させる
+                            rejPeakCandidates.append(ft[6])
+
                 else:   # 見つからなかったら
                     ft[3]=0          # ピーク候補の数(0)
                     ft[4]=-1         # ピーク候補の何番目か(-1)
                     ft[5]=-1         # ピーク候補の標高(-1)
-                # 見つけたピーク候補の番号が今回初めてだったら
-                if ft[3]==1 and ft[4] not in foundPeaksCandidate:
-                    foundPeaksCandidate.append(ft[4]) # 見つけたピーク候補の番号を控えておく
-                    peakCnt+=1  # 見つけたピーク数をカウントアップ
         else:   # 終わったら1番最後の親の情報を更新
             familyTree[parentIdx][3]=peakCnt
             # 親のピーク候補の番号には、見つけたピーク候補の最小値を入れる
@@ -442,17 +399,6 @@ def main(filePath, debug=False, processtimelog=False):
             td=datetime.datetime.now()-start
             with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"update familyTree",td.microseconds])
-            start=datetime.datetime.now()
-#
-        # 家系図が出来上がった時点で、家系図に座標が載っていないピーク候補は
-        # 既に輪郭線に飲み込まれた些細なピークなので2次審査不合格
-        pcCordSet={ft[6] for ft in familyTree if ft[6] is not None and ft[6]!=-1}
-        peakCandidates=[pc for pc in peakCandidates if pc[1] in pcCordSet]
-# 時間測定
-        if processtimelog:
-            td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
-                csv.writer(f).writerow([el,"update peakCandidates",td.microseconds])
             start=datetime.datetime.now()
 #
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
@@ -546,13 +492,13 @@ def main(filePath, debug=False, processtimelog=False):
                                 print(f"{el} hierarchy:{i} {hl}")
                             for i,pft in enumerate(familyTree):
                                 print(f"{el} familyTree:{i} {pft}")
-                            for i,oc in enumerate(overChild):
-                                print(f"{el} overChild:{i} {oc}")
+                            for i,ocl in enumerate(overChild):
+                                print(f"{el} overChild:{i} {ocl}")
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
-                            for oc in overChild:
-                                print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                            for ocl in overChild:
+                                print(f"{el} contours:{ocl[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[ocl[0]]]}")
                             print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                             assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
                         if debug:
@@ -560,8 +506,9 @@ def main(filePath, debug=False, processtimelog=False):
                         # ピーク候補の更新
                         for pci,pc in enumerate(peakCandidates):
                             #if oc[4]==pci and oc[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
-                            # 同じ標高で先に誰かが先に消しているとインデックスが合わなくなるので、標高と座標に変更。座標だけでも良いと思うが念の為
-                            if oc[5]==pc[0] and oc[6]==pc[1]:
+                            # 同じ標高で先に誰かが先に消しているとインデックスが合わなくなるので突合キーを座標に変更。
+                            print(oc[6],pc[1])
+                            if oc[6]==pc[1]:
                                 popPc=peakCandidates.pop(pci)   # ピーク候補から削除
                                 # peakColProminenceに追加
                                 prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
@@ -579,23 +526,55 @@ def main(filePath, debug=False, processtimelog=False):
                                 print(f"{el} hierarchy:{i} {hl}")
                             for i,pft in enumerate(familyTree):
                                 print(f"{el} familyTree:{i} {pft}")
-                            for i,oc in enumerate(overChild):
-                                print(f"{el} overChild:{i} {oc}")
+                            for i,ocl in enumerate(overChild):
+                                print(f"{el} overChild:{i} {ocl}")
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
-                            print(f"{el} peakId:{oc[4]} colList:{colList}")
-                            for oc in overChild:
-                                print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                            print(f"{el} colList:{colList}")
+                            for ocl in overChild:
+                                print(f"{el} contours:{ocl[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[ocl[0]]]}")
                             print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                             assert False, "コルの見つかったピーク候補がpeakCandidates内に見当たらない。内容要確認"
                         if debug:
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} new peakCandidates:{pci} {pc}")
+            else:
+                # 後でpeakCandidatesの整理を行うのでここでは何もしない事にした。
+                #if peakCandidate2peakSw:    # ここに来てこれがTrueだと上手く処理出来てない
+                #    for i,hl in enumerate(hierarchyList):
+                #        print(f"{el} hierarchy:{i} {hl}")
+                #    for i,pft in enumerate(familyTree):
+                #        print(f"{el} familyTree:{i} {pft}")
+                #    #for i,oc in enumerate(overChild):
+                #    #    print(f"{el} overChild:{i} {oc}")
+                #    for pci,pc in enumerate(peakCandidates):
+                #        print(f"{el} peakCandidates:{pci} {pc}")
+                #    print(f"{el} peakId:{oc[4]} colList:{colList}")
+                #    #for oc in overChild:
+                #    #    print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                #    for rpci,rpc in enumerate(rejPeakCandidates):
+                #        print(f"{el} rejPeakCandidates:{rpci} {rpc}")
+                #    print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
+                #    assert False, "コルの標高に到達したピーク候補が未だ残っている。内容要確認"
+                pass
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
             with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"check familyTree",td.microseconds])
+            start=datetime.datetime.now()
+#
+        if debug:
+            for rpci,rpc in enumerate(rejPeakCandidates):
+                print(f"{el} rejPeakCandidates:{rpci} {rpc}")
+        # 最後に不合格になったピーク候補が残っていれば除外する
+        rpcCordSet={rpc for rpc in rejPeakCandidates}
+        peakCandidates=[pc for pc in peakCandidates if pc[1] not in rpcCordSet]
+# 時間測定
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"update peakCandidates",td.microseconds])
             start=datetime.datetime.now()
 #
     # 最後、1番標高の高いピークをpeakColProminenceに登録する
