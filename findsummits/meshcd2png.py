@@ -90,9 +90,9 @@ def fetch_rough_tile(z, x, y):
     if res.status_code == 200:
         img = Image.open(io.BytesIO(res.content))
     else:
-#        print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
-#        print("return N/A image")
-#        img = Image.new("RGB",(256, 256),(128,0,0))
+        #print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
+        #print("return N/A image")
+        #img = Image.new("RGB",(256, 256),(128,0,0))
         # こちらの方が倍以上速い
         img = np.zeros((256,256,3),dtype=np.uint8)
         img[:, :, 0]=128
