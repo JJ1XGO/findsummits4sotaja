@@ -9,12 +9,10 @@ import math
 from decimal import Decimal
 import cv2
 from operator import itemgetter
-from scipy.ndimage.filters import maximum_filter
 import matplotlib.pyplot as plt
 from matplotlib.colors import LightSource
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-#from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 # 設定ファイル読み込み
 config=configparser.ConfigParser()
@@ -36,17 +34,8 @@ def png2elevs(filePath):
     elevs=np.where(elevs0<0, 0, elevs0) # マイナス標高は全て0とする
     del elevs0
     return elevs
-# ピークを見つけ出す
-def detectPeaksCoords(image):   # filter_size*5m四方の範囲でピークを見つけ出す
-    local_max = maximum_filter(image, footprint=np.ones((config["VAL"].getint("FILTER_SIZE"), config["VAL"].getint("FILTER_SIZE"))), mode='constant')
-    detected_peaks = np.ma.array(image, mask=~(image == local_max))
-
-    # 小さいピーク値を排除（minimumProminenceより小さなピークは排除）
-    temp = np.ma.array(detected_peaks, mask=~(detected_peaks >= config["VAL"].getint("MINIMUM_PROMINENCE")))
-    peaks_index = np.where(temp.mask != True)
-    return list(zip(*np.where(temp.mask != True)))
 #
-def main(filePath, debug=True, processtimelog=False):
+def main(filePath, debug=False, processtimelog=False):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     elevs=png2elevs(filePath)
@@ -193,7 +182,6 @@ def main(filePath, debug=True, processtimelog=False):
 #
         if debug:
             print(f"{el} 世代階層:{genCnt}")
-        if debug:
             for pci,pc in enumerate(peakCandidates):
                 print(f"{el} peakCandidates:{pci} {pc}")
         #親世代だけだったら子供が出てくるまで飛ばす
@@ -507,7 +495,6 @@ def main(filePath, debug=True, processtimelog=False):
                         for pci,pc in enumerate(peakCandidates):
                             #if oc[4]==pci and oc[5]==pc[0]: # 念の為、インデックスと標高の2つでチェック
                             # 同じ標高で先に誰かが先に消しているとインデックスが合わなくなるので突合キーを座標に変更。
-                            print(oc[6],pc[1])
                             if oc[6]==pc[1]:
                                 popPc=peakCandidates.pop(pci)   # ピーク候補から削除
                                 # peakColProminenceに追加
