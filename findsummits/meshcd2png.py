@@ -2,9 +2,11 @@ import sys
 import datetime
 import os
 import configparser
+import time
 import numpy as np
 import requests
 import io
+import cv2
 from PIL import Image
 from math import pi,e,log,sin,tan,asin,atan,tanh
 from numpy import arctanh
@@ -88,15 +90,11 @@ def fetch_rough_tile(z, x, y):
     url = f"https://cyberjapandata.gsi.go.jp/xyz/dem_png/{highlvlz}/{tileX}/{tileY}.png"
     res=requests.get(url)
     if res.status_code == 200:
-        img = Image.open(io.BytesIO(res.content))
+        imgarry = np.array(Image.open(io.BytesIO(res.content)))
     else:
-        #print(f"status_code={res.status_code} dem_png/{highlvlz}/{tileX}/{tileY}.png")
-        #print("return N/A image")
-        #img = Image.new("RGB",(256, 256),(128,0,0))
-        # こちらの方が倍以上速い
-        img = np.zeros((256,256,3),dtype=np.uint8)
-        img[:, :, 0]=128
-    return img, z-1, tileX, tileY, pointX, pointY
+        imgarry = np.zeros((256,256,3),dtype=np.uint8)
+        imgarry[:, :, 0]=128
+    return imgarry, z-1, tileX, tileY, pointX, pointY
 # 与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
 def fetch_tile(z, x, y):
     flgGetTile=False
@@ -118,24 +116,22 @@ def fetch_tile(z, x, y):
                 break
 #        else:
 #            print(f"get_status={res.status_code} {dem5lvl}/{z}/{x}/{y}")
+        time.sleep(0.5) # 国土地理院のサーバに余り負荷を掛けないよう少し待機
     # ここまでで最も詳細な標高データの取得完了。標高データN/Aがあったら次のレベルの標高データで補完する
-#    if flgGetTile:  # 既に標高タイルが取得出来てる時
     if flgGetTile is False:  # 標高タイルが取得出来ていない時
-        imgarry = np.array(Image.new("RGB",(256, 256),(128,0,0)))
+        imgarry = np.zeros((256,256,3),dtype=np.uint8)
+        imgarry[:, :, 0]=128
         elevsarry=imgarry[:, :, 0].copy()*np.power(2,16)
     if (elevsarry==2**23).any():    #標高データにN/Aがあったら
-        (imgtile,zlvl,tileX,tileY,pixX,pixY) = fetch_rough_tile(z, x, y)    # 取り敢えず1レベル粗い標高タイルを取得して
-        tilearry = np.array(imgtile)                                        # tilearryに入れる
+        (tilearry,zlvl,tileX,tileY,pixX,pixY) = fetch_rough_tile(z, x, y)    # 取り敢えず1レベル粗い標高タイルを取得して
         for (pixY,pixX) in list(zip(*np.where(elevsarry==2**23))):          # 標高データがN/Aの座標を取得して
             (highlvlz, tileXX, tileYY, pointY, pointX)=getHighLvlTilePoint(z, x, y, pixY, pixX, 1)  # 1レベル上のタイル座標を求める
             assert tileX == tileXX, "タイル座標のXが一致していません"
             assert tileY == tileYY, "タイル座標のYが一致していません"
 #            print("{}/{}/{} ({}, {}) -> ({}, {}) -> {}/{}/{} ({}, {})".format(z,x,y,pixY,pixX,lat,lon,zlvl,tileX,tileY,pointY,pointX))
             imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
-        # ↑ここのforブロックを並列処理化したいが上手く実装出来ず
-    img = Image.fromarray(imgarry)  # imgarryをImageに変換
-    return img
-# 並列処理するためのwrapper
+    return imgarry
+## 並列処理するためのwrapper
 def fetch_tile_wrapper(tilecdnts):
     return fetch_tile(*tilecdnts)
 # 北西端・南東端のタイル座標を指定して、長方形領域の標高タイルを取得
@@ -179,10 +175,12 @@ def main(meshcd,arg2=""):
 
     scope_tile = fetch_scope_tiles((config["VAL"].getint("ZOOM_LVL"),startTileX,startTileY), (config["VAL"].getint("ZOOM_LVL"),endTileX,endTileY))
     print(scope_tile.shape)
-    img_scope_tile = Image.fromarray(scope_tile)
+    #img_scope_tile = Image.fromarray(scope_tile)
     os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
     result=f'{config["DIR"]["TILE"]}/{mesh}-00_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
-    img_scope_tile.save(result)
+    #img_scope_tile.save(result)
+    # イメージの書き込みはpillowよりopencvの方が速いのでopencvを使う
+    cv2.imwrite(result,cv2.cvtColor(scope_tile,cv2.COLOR_RGB2BGR))
 
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
     return result
