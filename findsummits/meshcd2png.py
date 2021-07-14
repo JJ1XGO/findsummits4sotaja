@@ -2,9 +2,10 @@ import sys
 import datetime
 import os
 import configparser
-import time
 import numpy as np
 import requests
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 import io
 import cv2
 from PIL import Image
@@ -86,9 +87,17 @@ def fetch_rough_tile(z, x, y):
         print(f"Check pointY! {z}/{x}/{y}:(0, 0) -> {highlvlz}/{tileX}/{tileY}:(w-> {pointY} <-w, {pointX})")
     if (pointX != 0 and pointX != 128):
         print(f"Check pointX! {z}/{x}/{y}:(0, 0) -> {highlvlz}/{tileX}/{tileY}:({pointY}, w-> {pointX} <-w)")
-    #
+# 地理院サーバー側がリクエスト処理を失敗した場合にリトライする設定
+    session = requests.Session()
+    retries = Retry(total=5,  # リトライ回数
+        backoff_factor=1,  # sleep時間
+        status_forcelist=[500, 502, 503, 504])  # timeout以外でリトライするステータスコード
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+#
     url = f"https://cyberjapandata.gsi.go.jp/xyz/dem_png/{highlvlz}/{tileX}/{tileY}.png"
-    res=requests.get(url)
+#    res=requests.get(url)
+# connect timeoutを10秒, read timeoutを30秒に設定
+    res=session.get(url, timeout=(10.0,30.0))
     if res.status_code == 200:
         imgarry = np.array(Image.open(io.BytesIO(res.content)))
     else:
@@ -98,9 +107,18 @@ def fetch_rough_tile(z, x, y):
 # 与えられた座標に対応する地理院地図標高タイル画像を取得し、可能な限り標高データで埋めたimageを返す
 def fetch_tile(z, x, y):
     flgGetTile=False
+# 地理院サーバー側がリクエスト処理を失敗した場合にリトライする設定
+    session = requests.Session()
+    retries = Retry(total=5,  # リトライ回数
+        backoff_factor=1,  # sleep時間
+        status_forcelist=[500, 502, 503, 504])  # timeout以外でリトライするステータスコード
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+#
     for dem5lvl in (["a", "b", "c"]):
         url = f"https://cyberjapandata.gsi.go.jp/xyz/dem5{dem5lvl}_png/{z}/{x}/{y}.png"
-        res=requests.get(url)
+#        res=requests.get(url)
+# connect timeoutを10秒, read timeoutを30秒に設定
+        res=session.get(url, timeout=(10.0,30.0))
         if res.status_code == 200:
             if flgGetTile:  # 既に標高タイルが取得出来てる時は標高データがN/Aの部分だけ入れる
                 tilearry = np.array(Image.open(io.BytesIO(res.content)))
@@ -116,7 +134,6 @@ def fetch_tile(z, x, y):
                 break
 #        else:
 #            print(f"get_status={res.status_code} {dem5lvl}/{z}/{x}/{y}")
-        time.sleep(0.5) # 国土地理院のサーバに余り負荷を掛けないよう少し待機
     # ここまでで最も詳細な標高データの取得完了。標高データN/Aがあったら次のレベルの標高データで補完する
     if flgGetTile is False:  # 標高タイルが取得出来ていない時
         imgarry = np.zeros((256,256,3),dtype=np.uint8)
@@ -128,7 +145,6 @@ def fetch_tile(z, x, y):
             (highlvlz, tileXX, tileYY, pointY, pointX)=getHighLvlTilePoint(z, x, y, pixY, pixX, 1)  # 1レベル上のタイル座標を求める
             assert tileX == tileXX, "タイル座標のXが一致していません"
             assert tileY == tileYY, "タイル座標のYが一致していません"
-#            print("{}/{}/{} ({}, {}) -> ({}, {}) -> {}/{}/{} ({}, {})".format(z,x,y,pixY,pixX,lat,lon,zlvl,tileX,tileY,pointY,pointX))
             imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
     return imgarry
 ## 並列処理するためのwrapper
