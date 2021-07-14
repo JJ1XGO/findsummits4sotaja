@@ -127,7 +127,8 @@ def fetch_tile(z, x, y):
             else:           # 初めて標高タイルが取得出来た時はそのまま入れる
                 flgGetTile=True
                 imgarry = np.array(Image.open(io.BytesIO(res.content)))
-            elevsarry=imgarry[:, :, 0].copy()*np.power(2,16)+imgarry[:, :, 1].copy()*np.power(2,8)+imgarry[:, :, 2].copy()
+#            elevsarry=imgarry[:, :, 0].copy()*np.power(2,16)+imgarry[:, :, 1].copy()*np.power(2,8)+imgarry[:, :, 2].copy()
+            elevsarry=imgarry[:, :, 0]*np.power(2,16)+imgarry[:, :, 1]*np.power(2,8)+imgarry[:, :, 2]
             if (elevsarry==2**23).any():    #標高データにN/Aがなければ抜ける
                 pass
             else:
@@ -141,11 +142,14 @@ def fetch_tile(z, x, y):
         elevsarry=imgarry[:, :, 0].copy()*np.power(2,16)
     if (elevsarry==2**23).any():    #標高データにN/Aがあったら
         (tilearry,zlvl,tileX,tileY,pixX,pixY) = fetch_rough_tile(z, x, y)    # 取り敢えず1レベル粗い標高タイルを取得して
-        for (pixY,pixX) in list(zip(*np.where(elevsarry==2**23))):          # 標高データがN/Aの座標を取得して
-            (highlvlz, tileXX, tileYY, pointY, pointX)=getHighLvlTilePoint(z, x, y, pixY, pixX, 1)  # 1レベル上のタイル座標を求める
-            assert tileX == tileXX, "タイル座標のXが一致していません"
-            assert tileY == tileYY, "タイル座標のYが一致していません"
-            imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
+        if (tilearry==2**23).all(): # 取得した標高タイルが全部N/Aだったら
+            pass    # 何もしない
+        else:   # 有効な標高データがあれば
+            for (pixY,pixX) in list(zip(*np.where(elevsarry==2**23))):          # 標高データがN/Aの座標を取得して
+                (highlvlz, tileXX, tileYY, pointY, pointX)=getHighLvlTilePoint(z, x, y, pixY, pixX, 1)  # 1レベル上のタイル座標を求める
+                assert tileX == tileXX, "タイル座標のXが一致していません"
+                assert tileY == tileYY, "タイル座標のYが一致していません"
+                imgarry[pixY,pixX] = tilearry[pointY, pointX]   # 標高データがN/Aの部分だけ入れる
     return imgarry
 ## 並列処理するためのwrapper
 def fetch_tile_wrapper(tilecdnts):
