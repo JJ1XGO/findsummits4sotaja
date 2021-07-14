@@ -41,18 +41,16 @@ def main(filePath, debug=False, processtimelog=False):
     elevs=png2elevs(filePath)
 #    imageHeightWidth=[es for es in elevs.shape]
     print(f"image height:{elevs.shape[0]} width:{elevs.shape[1]}")
-# ピーク(候補)の一覧作成
-    peakCandidates=[]
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
     print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, {len(elvslist)} steps will be analyzed")
-#
-    peakColProminence=[]
 # 時間測定
     if processtimelog:
         with open(config["DIR"]["DATA"]+"/processtime.csv","w") as f:
             csv.writer(f).writerow(["el","func","microseconds"])
 #
+    peakCandidates=[]
+    peakColProminence=[]
     for el in tqdm(elvslist):
 # 時間測定
         if processtimelog:
@@ -73,15 +71,15 @@ def main(filePath, debug=False, processtimelog=False):
             start=datetime.datetime.now()
 #
         # 輪郭を描画する
-#        contimg=np.zeros(img.shape,dtype=np.uint8)
-#        cv2.drawContours(contimg, contours, -1, 255, thickness=1)
         img=np.zeros(img.shape,dtype=np.uint8)
-        cv2.drawContours(img, contours, -1, 255, thickness=1)
+#        cv2.drawContours(img, contours, -1, 255, thickness=1)
+        for hi,hrrchy in enumerate(hierarchy[0]):
+            if hrrchy[3]==-1:   # 親の時に
+                # 自分と子だけ(maxLevel=1)の輪郭線を描画する
+                cv2.drawContours(img, contours, hi, 255, thickness=1, hierarchy=hierarchy, maxLevel=1)
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
-#            contimg[xy[1],xy[0]]=255
             img[xy[1],xy[0]]=255
-#        img=np.uint8(contimg)   # 輪郭とピークだけの画像にする
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
@@ -231,7 +229,7 @@ def main(filePath, debug=False, processtimelog=False):
                         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                         cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}.png',contimg)
                         print(f"{el} hierarchy:{hierarchyList}")
-                        print(f"{el} contours[{currentHrrchy}]:{contours[currentHrrchy]}")
+                        print(f"{el} contours[{hi}]:{contours[hi]}")
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
                         for i,pft in enumerate(familyTree):
                             print(f"{el} familyTree:{i} {pft}")
@@ -485,8 +483,8 @@ def main(filePath, debug=False, processtimelog=False):
                             for pci,pc in enumerate(peakCandidates):
                                 print(f"{el} peakCandidates:{pci} {pc}")
                             print(f"{el} peakId:{oc[4]} colList:{colList}")
-                            for ocl in overChild:
-                                print(f"{el} contours:{ocl[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[ocl[0]]]}")
+                            #for ocl in overChild:
+                            #    print(f"{el} contours:{ocl[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[ocl[0]]]}")
                             print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                             assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
                         if debug:

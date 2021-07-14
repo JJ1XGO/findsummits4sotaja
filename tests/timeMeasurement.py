@@ -8,10 +8,10 @@ import numpy as np
 import timeit
 #
 def pilread():
-    img = np.array(Image.open("tiles/0000-00_15-28967-12895_15-28977-12905.png"))
+    img = np.array(Image.open("tiles/533800-00_15-28945-12904_15-28990-12942.png"))
     imgcv2 = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
 def cv2read():
-    img = cv2.imread("tiles/0000-00_15-28967-12895_15-28977-12905.png")
+    img = cv2.imread("tiles/533800-00_15-28945-12904_15-28990-12942.png")
 def pilwrite(img):
     img.save("tiles/test.png")
 def cv2write(img):
@@ -28,12 +28,12 @@ def main():
     result = timeit.timeit("cv2read()", globals=globals(), number=loop)
     print(f"avg-> cv2read():{result / loop}")
 #
-    img = Image.open("tiles/0000-00_15-28967-12895_15-28977-12905.png")
-    result = timeit.timeit(lambda: pilwrite(img), globals=globals(), number=loop)
-    print(f"avg-> pilwrite():{result / loop}")
+#    img = Image.open("tiles/533800-00_15-28945-12904_15-28990-12942.png")
+#    result = timeit.timeit(lambda: pilwrite(img), globals=globals(), number=loop)
+#    print(f"avg-> pilwrite():{result / loop}")
 
-    result = timeit.timeit(lambda: cv2write(img), globals=globals(), number=loop)
-    print(f"avg-> cv2write():{result / loop}")
+#    result = timeit.timeit(lambda: cv2write(img), globals=globals(), number=loop)
+#    print(f"avg-> cv2write():{result / loop}")
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #

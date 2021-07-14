@@ -4,6 +4,6 @@ numpy
 opencv-contrib-python
 opencv-python
 openpyxl
-Pillow
+pillow-simd
 requests
 tqdm
