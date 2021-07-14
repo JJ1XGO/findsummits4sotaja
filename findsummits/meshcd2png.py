@@ -178,30 +178,29 @@ def main(meshcd,arg2=""):
     # 最北西と再南東の緯度/経度を得るため該当するメッシュコードを求める
     if len(meshcd)==4:
         mesh=int(meshcd)
-        startMesh=mesh+100
-        endMesh=mesh+1
+        tmpMesh=mesh+101
     elif len(meshcd)==6:
         mesh=int(meshcd)
         # 8進だからややこしいけど、計算式はコレ
-        startMesh=mesh+(mesh%100//10+4)//8*10000+(1-2*((mesh%100//10+4)//8))*40
-        endMesh=mesh+(mesh%10+4)//8*100+(1-2*((mesh%10+4)//8))*4
-#    print(startMesh,endMesh)
-    (start_lat,start_lon)=mesh2latlon(startMesh)
-    (end_lat,end_lon)=mesh2latlon(endMesh)
+        tmpMesh=mesh+(mesh%100//10+4)//8*10000+(1-2*((mesh%100//10+4)//8))*40+(mesh%10+4)//8*100+(1-2*((mesh%10+4)//8))*4
+#    print(mesh,tmpMesh)
+    (end_lat,start_lon)=mesh2latlon(mesh)
+    (start_lat,end_lon)=mesh2latlon(tmpMesh)
     print(f"NorthWest:({start_lat}, {start_lon}) SouthEast:({end_lat}, {end_lon})")
+# 該当するタイル座標を求める
     (startTileX, startTileY, _, _)=latlon2tilePixel(start_lat, start_lon, config["VAL"].getint("ZOOM_LVL"))
     (endTileX, endTileY, _, _)=latlon2tilePixel(end_lat, end_lon, config["VAL"].getint("ZOOM_LVL"))
     print(f'startTile:{config["VAL"].getint("ZOOM_LVL")}/{startTileX}/{startTileY} endTile:{config["VAL"].getint("ZOOM_LVL")}/{endTileX}/{endTileY}')
-
+# 纏めた標高タイルを生成
     scope_tile = fetch_scope_tiles((config["VAL"].getint("ZOOM_LVL"),startTileX,startTileY), (config["VAL"].getint("ZOOM_LVL"),endTileX,endTileY))
     print(scope_tile.shape)
-    #img_scope_tile = Image.fromarray(scope_tile)
+# 纏めた標高タイルを保存
     os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
     result=f'{config["DIR"]["TILE"]}/{mesh}-00_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
     #img_scope_tile.save(result)
     # イメージの書き込みはpillowよりopencvの方が速いのでopencvを使う
     cv2.imwrite(result,cv2.cvtColor(scope_tile,cv2.COLOR_RGB2BGR))
-
+#
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
     return result
 #---
@@ -211,5 +210,5 @@ if __name__ == '__main__':
     if len(args)>0:
         ret=main(*args)
     else:
-        print("2次メッシュ番号を指定してください")
+        print("メッシュ番号を指定してください")
     print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
