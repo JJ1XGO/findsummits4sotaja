@@ -62,7 +62,11 @@ def main(filePath, debug=False, processtimelog=False):
         img[elevs>=el]=255
         # 輪郭を抽出する。最初はベタ塗りの画像から輪郭だけ抽出したいので
         # 階層問わず(cv2.RETR_LIST)輪郭のみのメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
-        contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+#        contours, hierarchy = cv2.findContours(img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # 輪郭を抽出する。最初はベタ塗りの画像から親の輪郭だけ抽出したいので
+        # 最も外側の輪郭のみ(cv2.RETR_EXTERNAL)のメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
+        # 子供がいたらそれは凹地なので気にしない
+        contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -72,11 +76,11 @@ def main(filePath, debug=False, processtimelog=False):
 #
         # 輪郭を描画する
         img=np.zeros(img.shape,dtype=np.uint8)
-#        cv2.drawContours(img, contours, -1, 255, thickness=1)
-        for hi,hrrchy in enumerate(hierarchy[0]):
-            if hrrchy[3]==-1:   # 親の時に
-                # 自分と子だけ(maxLevel=1)の輪郭線を描画する
-                cv2.drawContours(img, contours, hi, 255, thickness=1, hierarchy=hierarchy, maxLevel=1)
+        cv2.drawContours(img, contours, -1, 255, thickness=1)
+#        for hi,hrrchy in enumerate(hierarchy[0]):
+#            if hrrchy[3]==-1:   # 親の時に
+#                # 自分と子だけ(maxLevel=1)の輪郭線を描画する
+#                cv2.drawContours(img, contours, hi, 255, thickness=1, hierarchy=hierarchy, maxLevel=1)
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
             img[xy[1],xy[0]]=255
