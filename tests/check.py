@@ -6,6 +6,7 @@ import configparser
 #import os
 #import requests
 #import io
+import cv2
 #
 #from .context import findsummits
 #import analyzePng as ap
@@ -15,9 +16,7 @@ import configparser
 def main():
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
-    print([None]*10)
-    print(type([None]*10))
-    print(len([None]*10))
+    print(cv2.useOptimized())
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---

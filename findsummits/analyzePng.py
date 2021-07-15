@@ -24,15 +24,11 @@ def png2elevs(filePath):
     img = cv2.imread(filePath)
     # RGBから標高地を計算: x = 2**16R + 2**8G + B
     # openCVではGBRの順番になるので注意
-    elevs0=img[:, :, 2].copy()*np.power(2,16)+img[:, :, 1].copy()*np.power(2,8)+img[:, :, 0].copy()
-    elevs=np.where(elevs0<2**23, elevs0/100, elevs0)            # x < 223の場合　h = xu
-    elevs0=elevs
-    elevs=np.where(elevs0==2**23, 0, elevs0)                    # x = 223の場合　h = NA 取り敢えず0とする
-    elevs0=elevs
-    elevs=np.where(elevs0>2**23, (elevs0-2**24)/100, elevs0)    # x > 223の場合　h = (x-224)u
-    elevs0=elevs
+    elevs=img[:, :, 2]*np.power(2,16)+img[:, :, 1]*np.power(2,8)+img[:, :, 0]
+    elevs0=np.where(elevs<2**23, elevs/100, elevs)          # x < 223の場合　h = xu
+    elevs=np.where(elevs0==2**23, 0, elevs0)                # x = 223の場合　h = NA 取り敢えず0とする
+    elevs0=np.where(elevs>2**23, (elevs-2**24)/100, elevs)  # x > 223の場合　h = (x-224)u
     elevs=np.where(elevs0<0, 0, elevs0) # マイナス標高は全て0とする
-    del elevs0
     return elevs
 #
 def main(filePath, debug=False, processtimelog=False):
