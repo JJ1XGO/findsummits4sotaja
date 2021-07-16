@@ -441,16 +441,22 @@ def main(filePath, debug=False, processtimelog=False):
                                 else:   # 見つからなかったら
                                     continue    # 次の座標へ
                                 break
-                        if len(colList)>1:  # コル座標が複数ある時
-                            newColList=[]
-                            # 同じ座標が複数出てきた時はそこが接点なので採用する
-                            for cl in collections.Counter(colList).most_common():
-                                if cl[1]>1:
-                                    newColList.append(cl[0])
-                            if len(newColList)>0:
-                                colList=newColList
-                            colSet=set(colList) # 重複排除
-                            colList=list(colSet)
+                            if len(colList)>1:  # コル座標が複数ある時
+                                newColList=[]
+                                # 同じ座標が複数出てきた時はそこが接点なので採用する
+                                for cl in collections.Counter(colList).most_common():
+                                    if cl[1]>1:
+                                        newColList.append(cl[0])
+                                if len(newColList)>0:
+                                    colList=newColList
+                                colSet=set(colList) # 重複排除
+                                colList=list(colSet)
+                        if len(colList)==0: # 子同士の接点も見つからなかった時
+                            # どこだかわからないので現在の標高と同じ標高の座標を全部抜き出す
+                            for oc2 in overChild:
+                                for ct in contours[oc2[0]]:
+                                    if elevs[ct[0][1],ct[0][0]] == el:
+                                        colList.append(tuple(ct[0].tolist()))
                         if len(colList)>1:  # コル座標が複数ある時
                             # 通常はピークとピークの間にあると思うので、2つのピークそれぞれに最も近いコルを採用。
                             newColList=[]
