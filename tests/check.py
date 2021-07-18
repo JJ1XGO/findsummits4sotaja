@@ -3,10 +3,10 @@ import datetime
 import os
 import pprint
 import configparser
-#import os
 #import requests
 #import io
 import cv2
+import psutil
 #
 #from .context import findsummits
 #import analyzePng as ap
@@ -16,7 +16,10 @@ import cv2
 def main():
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
-    print(cv2.useOptimized())
+#    print(cv2.useOptimized())
+    print(os.cpu_count())
+    print(psutil.cpu_count())
+    print(psutil.cpu_count(logical=False))
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
 #---

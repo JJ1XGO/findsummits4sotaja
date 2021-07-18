@@ -2,6 +2,7 @@ import sys
 import datetime
 import os
 import configparser
+import psutil
 import numpy as np
 import requests
 from requests.packages.urllib3.util.retry import Retry
@@ -161,7 +162,8 @@ def fetch_scope_tiles(north_west, south_east):
     y_range = range(north_west[2], south_east[2]+1)
 # イメージタイルを取ってくる部分を並列処理化
     tilecdnts=[[north_west[0], x, y] for y in y_range for x in x_range]
-    with ProcessPoolExecutor() as executor: # max_workersは取り敢えずpythonにお任せ
+    # max_workersは搭載されているCPUのコア数とする
+    with ProcessPoolExecutor(max_workers=psutil.cpu_count(logical=False)) as executor:
         futures = executor.map(fetch_tile_wrapper, tilecdnts)
     # イメージ取り出し。もっとスマートなやり方ありそう
     tileimgs=[f for f in futures]
@@ -172,18 +174,43 @@ def fetch_scope_tiles(north_west, south_east):
             ],axis=1) for y in range(len(y_range))
         ],axis=0)
 #-------------Main---------------------------------
-def main(meshcd,arg2=""):
+def main(meshcd,quarter="00"):
+#def main(meshcd="",quarter="00",start="",end=""):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     # 最北西と再南東の緯度/経度を得るため該当するメッシュコードを求める
+    #assert len(start)==len(end), "from/toには2次メッシュコードを指定してください"
+    #if len(start)==0 and len(end)==0:
+    #    print("start,end=0")
+    #    print(start,end)
+    #    pass
+    #elif len(start)==6 and len(end)==6:
+    #    print("start,end=6")
+    #    print(start,end)
+    #    meshcd=start
+    #    quarter=end
+    #else:
+    #    print("start,end>6")
+    #    print(start,end)
+    #    assert False, "from/toには2次メッシュコードを指定してください"
     if len(meshcd)==4:
-        mesh=int(meshcd)
-        tmpMesh=mesh+101
+        mesh=int(meshcd)*100+int(quarter[0])*40+int(quarter[1])*4
+        tmpMesh=mesh+10100
     elif len(meshcd)==6:
         mesh=int(meshcd)
         # 8進だからややこしいけど、計算式はコレ
-        tmpMesh=mesh+(mesh%100//10+4)//8*10000+(1-2*((mesh%100//10+4)//8))*40+(mesh%10+4)//8*100+(1-2*((mesh%10+4)//8))*4
-#    print(mesh,tmpMesh)
+        tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
+        #if len(end)==0:
+        #    # 8進だからややこしいけど、計算式はコレ
+        #    tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
+        #else:
+        #    tmpMesh=int(end)+((int(end)%10+1)//8)*100+(int(end)%10+1)//8*10+(1-2*((int(end)%10+1)//8))
+    #else:
+    #    print(meshcd)
+    #    print(len(meshcd))
+    #print(mesh,tmpMesh)
+    #return
+#
     (end_lat,start_lon)=mesh2latlon(mesh)
     (start_lat,end_lon)=mesh2latlon(tmpMesh)
     print(f"NorthWest:({start_lat}, {start_lon}) SouthEast:({end_lat}, {end_lon})")
@@ -196,7 +223,7 @@ def main(meshcd,arg2=""):
     print(scope_tile.shape)
 # 纏めた標高タイルを保存
     os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
-    result=f'{config["DIR"]["TILE"]}/{mesh}-00_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
+    result=f'{config["DIR"]["TILE"]}/{meshcd}-{quarter}_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
     #img_scope_tile.save(result)
     # イメージの書き込みはpillowよりopencvの方が速いのでopencvを使う
     cv2.imwrite(result,cv2.cvtColor(scope_tile,cv2.COLOR_RGB2BGR))
