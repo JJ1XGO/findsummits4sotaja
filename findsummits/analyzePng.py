@@ -46,8 +46,8 @@ def main(filePath, debug=False, processtimelog=False):
     print(f"image height:{elevs.shape[0]} width:{elevs.shape[1]}")
 # 標高の一覧(高い順)を取得
     elvslist=list(np.unique(elevs))[::-1]
-    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m")
-    print(f"elevation difference: {float(Decimal(str(elevs.max()))-Decimal(str(elevs.min())))}m, {len(elvslist)} steps will be analyzed")
+    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, difference:{float(Decimal(str(elevs.max()))-Decimal(str(elevs.min())))}m")
+    print(f"{len(elvslist)} steps will be analyzed")
 # 時間測定
     if processtimelog:
         td=datetime.datetime.now()-start
@@ -57,7 +57,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
     peakCandidates=[]
     peakColProminence=[]
-    print("analysis started")
+    print("analyzing start")
     for el in tqdm(elvslist):
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
@@ -571,7 +571,7 @@ def main(filePath, debug=False, processtimelog=False):
     for pcli,pcl in enumerate(peakColProminence):
         print(f"peakColProminence:{pcli} {pcl}")
     # 出来上がったpeakColProminenceをテキストに吐き出す
-    print("analysis completed")
+    print("analyzing completed")
     os.makedirs(config["DIR"]["PCP"] ,exist_ok=True)
     result=f'{config["DIR"]["PCP"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pcp'
     with open(result, mode="w") as f:
