@@ -507,22 +507,23 @@ def main(filePath, debug=False, processtimelog=False):
                     prominence=float(Decimal(str(popPc[0]))-Decimal(str(el)))
                     peakColProminence.append((popPc,(el,colList[0]),prominence))
                     break
-            else:   # ここに来る事はない筈
-                for i,hl in enumerate(hierarchyList):
-                    print(f"{el} hierarchy:{i} {hl}")
-                for i,pft in enumerate(familyTree):
-                    print(f"{el} familyTree:{i} {pft}")
-                for i,ocl in enumerate(overChild):
-                    print(f"{el} overChild:{i} {ocl}")
-                for pci,pc in enumerate(peakCandidates):
-                    print(f"{el} peakCandidates:{pci} {pc}")
-                print(f"{el} peakNo:{loserPcNo} colList:{colList}")
-                #for oc in overChild:
-                #    print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
-                for rpci,rpc in enumerate(rejPeakCandidates):
-                    print(f"{el} rejPeakCandidates:{rpci} {rpc}")
-                print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
-                assert False, "コルの見つかったピーク候補がpeakCandidates内に見当たらない。内容要確認"
+            else:   # ここに来る事はない筈だが、万が一ここに来た場合は先に誰かが消しているので特に何もしない
+                #for i,hl in enumerate(hierarchyList):
+                #    print(f"{el} hierarchy:{i} {hl}")
+                #for i,pft in enumerate(familyTree):
+                #    print(f"{el} familyTree:{i} {pft}")
+                #for i,ocl in enumerate(overChild):
+                #    print(f"{el} overChild:{i} {ocl}")
+                #for pci,pc in enumerate(peakCandidates):
+                #    print(f"{el} peakCandidates:{pci} {pc}")
+                #print(f"{el} peakNo:{loserPcNo} colList:{colList}")
+                ##for oc in overChild:
+                ##    print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                #for rpci,rpc in enumerate(rejPeakCandidates):
+                #    print(f"{el} rejPeakCandidates:{rpci} {rpc}")
+                #print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
+                #assert False, "コルの見つかったピーク候補がpeakCandidates内に見当たらない。内容要確認"
+                pass
             if debug:
                 for pci,pc in enumerate(peakCandidates):
                     print(f"{el} new peakCandidates:{pci} {pc}")
