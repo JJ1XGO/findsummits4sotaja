@@ -488,9 +488,11 @@ def main(filePath, debug=False, processtimelog=False):
                     print(f"{el} overChild:{i} {ocl}")
                 for pci,pc in enumerate(peakCandidates):
                     print(f"{el} peakCandidates:{pci} {pc}")
-                print(f"{el} peakNo:{oc[4]} colList:{colList}")
+                print(f"{el} peakNo:{loserPcNo} colList:{colList}")
                 #for ocl in overChild:
                 #    print(f"{el} contours:{ocl[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[ocl[0]]]}")
+                for rpci,rpc in enumerate(rejPeakCandidates):
+                    print(f"{el} rejPeakCandidates:{rpci} {rpc}")
                 print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                 assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
             if debug:
@@ -514,9 +516,11 @@ def main(filePath, debug=False, processtimelog=False):
                     print(f"{el} overChild:{i} {ocl}")
                 for pci,pc in enumerate(peakCandidates):
                     print(f"{el} peakCandidates:{pci} {pc}")
-                print(f"{el} colList:{colList}")
-                for oc in overChild:
-                    print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                print(f"{el} peakNo:{loserPcNo} colList:{colList}")
+                #for oc in overChild:
+                #    print(f"{el} contours:{oc[0]} {[tuple(contpoint[0].tolist()) for contpoint in contours[oc[0]]]}")
+                for rpci,rpc in enumerate(rejPeakCandidates):
+                    print(f"{el} rejPeakCandidates:{rpci} {rpc}")
                 print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
                 assert False, "コルの見つかったピーク候補がpeakCandidates内に見当たらない。内容要確認"
             if debug:

@@ -2,7 +2,6 @@ import sys
 import datetime
 import os
 import configparser
-import psutil
 import numpy as np
 import requests
 from requests.packages.urllib3.util.retry import Retry
@@ -162,8 +161,8 @@ def fetch_scope_tiles(north_west, south_east):
     y_range = range(north_west[2], south_east[2]+1)
 # イメージタイルを取ってくる部分を並列処理化
     tilecdnts=[[north_west[0], x, y] for y in y_range for x in x_range]
-    # max_workersは搭載されているCPUのコア数とする
-    with ProcessPoolExecutor(max_workers=psutil.cpu_count(logical=False)) as executor:
+    # max_workersは論理CPU数の3/4(小数点以下切捨)とする
+    with ProcessPoolExecutor(max_workers=os.cpu_count()*3//4) as executor:
         futures = executor.map(fetch_tile_wrapper, tilecdnts)
     # イメージ取り出し。もっとスマートなやり方ありそう
     tileimgs=[f for f in futures]
