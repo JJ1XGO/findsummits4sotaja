@@ -101,11 +101,14 @@ def main(filePath, debug=False, processtimelog=False):
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
             #img[xy[1],xy[0]]=255
-            #print([xy[1]-ybase,xy[0]-xbase])
             img[xy[1]-ybase,xy[0]-xbase]=255
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        # 元の座標に戻す
+        for ct in contours:
+            ct[:,:,0]+=xbase
+            ct[:,:,1]+=ybase
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -148,33 +151,25 @@ def main(filePath, debug=False, processtimelog=False):
             if hrrchy[3]==-1:
                 contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
                 for pc in peakCandidates:
-                    #if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば何もしない
-                    if (pc[1][0]-xbase,pc[1][1]-ybase) in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば何もしない
+                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば何もしない
                         break
                 else:   # なければピーク候補に入れる
                     contpointList=[]
                     for cl in contpointSet:
                         if debug:
-                            #print(f"{el} borderline check:{cl}")
-                            print(f"{el} borderline check:{(cl[0]+xbase,cl[1]+ybase)}")
+                            print(f"{el} borderline check:{cl}")
                         # 外枠近辺で見つかったピーク候補は今回落選させる(殆どがイメージ外から続く稜線上の最高地点)
-                        #if cl[0]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
-                        if cl[0]+xbase<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[0]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        #if cl[0]>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-                        if cl[0]+xbase>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[0]>=elevs.shape[1]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        #if cl[1]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
-                        if cl[1]+ybase<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[1]<=config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        #if cl[1]>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
-                        if cl[1]+ybase>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
+                        if cl[1]>=elevs.shape[0]-config["VAL"].getint("CANDIDATE_BORDERLINE"):
                             continue
-                        #contpointList.append(cl)
-                        contpointList.append((cl[0]+xbase,cl[1]+ybase))
+                        contpointList.append(cl)
                         if debug:
-                            #print(f"{el} borderline check pass:{cl}")
-                            print(f"{el} borderline check pass:{(cl[0]+xbase,cl[1]+ybase)}")
+                            print(f"{el} borderline check pass:{cl}")
                     if debug:
                         print(f"{el} contpointList:{contpointList}")
                     if len(peakCandidates)==0:  # 初回はそのまま通す
@@ -315,8 +310,7 @@ def main(filePath, debug=False, processtimelog=False):
             # 輪郭線を構成する座標の一覧を作成
             cpSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
             for pci,pc in enumerate(peakCandidates):
-                #if pc[1] in cpSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
-                if (pc[1][0]-xbase,pc[1][1]-ybase) in cpSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
+                if pc[1] in cpSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
                     if debug:
                         print(f"found peak candidate! {fNumber}　({pci} {pc})")
                     if selfGeneration==1:   # 親
@@ -456,23 +450,18 @@ def main(filePath, debug=False, processtimelog=False):
                         # 親の座標の中に今の標高と一致する座標がある筈なのでそれを抜き出す。
                         elCrds=set(tuple(zip(*np.where(elevs==el))))
                         for ct in contours[oc[0]]:
-                            #if (ct[0][1],ct[0][0]) in elCrds:
-                            if (ct[0][0]+xbase,ct[0][1]+ybase) in elCrds:
+                            if (ct[0][1],ct[0][0]) in elCrds:
                                 if debug:
-                                    #print(f"found col! ({tuple(ct[0].tolist())})")
-                                    print(f"found col! ({(ct[0][0]+xbase,ct[0][1]+ybase)})")
-                                #colList.append(tuple(ct[0].tolist()))
-                                colList.append((ct[0][0]+xbase,ct[0][1]+ybase))
+                                    print(f"found col! ({tuple(ct[0].tolist())})")
+                                colList.append(tuple(ct[0].tolist()))
                         if len(colList)==0:
                             # 親の座標に見つからなかった時、隣接する子との接点を探す
                             for ct in contours[oc[0]]:  # 自分の輪郭線の座標と
                                 for compCt in contours[overChild[oci+findColFb][0]]:    # 相手の輪郭線の座標を比較して
                                     if np.all(ct==compCt):  # 一致していればコル座標を発見
                                         if debug:
-                                        #    print(f"found col! ({ct[0].tolist()})")
-                                        #colList.append(tuple(ct[0].tolist()))
-                                            print(f"found col! ({(ct[0][0]+xbase,ct[0][1]+ybase)})")
-                                        colList.append((ct[0][0]+xbase,ct[0][1]+ybase))
+                                            print(f"found col! ({ct[0].tolist()})")
+                                        colList.append(tuple(ct[0].tolist()))
                                         break
                                 else:   # 見つからなかったら
                                     continue    # 次の座標へ
@@ -481,10 +470,8 @@ def main(filePath, debug=False, processtimelog=False):
                                 # どこだかわからないので現在の標高と同じ標高の座標を全部抜き出す
                                 for oc2 in overChild:
                                     for ct in contours[oc2[0]]:
-                                        #if elevs[ct[0][1],ct[0][0]] == el:
-                                        #    colList.append(tuple(ct[0].tolist()))
-                                        if elevs[ct[0][1]+ybase,ct[0][0]+xbase] == el:
-                                            colList.append((ct[0][0]+xbase,ct[0][1]+ybase))
+                                        if elevs[ct[0][1],ct[0][0]] == el:
+                                            colList.append(tuple(ct[0].tolist()))
                             break   # ループを抜ける
 #
             if len(colList)==0:  # コル座標が見つからなかった時
@@ -496,16 +483,14 @@ def main(filePath, debug=False, processtimelog=False):
                 # 通常はピークとピークの間にあると思うので、2つのピークそれぞれに最も近いコルを採用。
                 newColList=[]
                 for cli,cl in enumerate(colList):
-                    #dist=math.sqrt((winnerPcCrd[0]-cl[0])**2+(winnerPcCrd[1]-cl[1])**2)+math.sqrt((loserPcCrd[0]-cl[0])**2+(loserPcCrd[1]-cl[1])**2)
-                    dist=math.sqrt((winnerPcCrd[0]-(cl[0]+xbase))**2+(winnerPcCrd[1]-(cl[1]+ybase))**2)+math.sqrt((loserPcCrd[0]-(cl[0]+xbase))**2+(loserPcCrd[1]-(cl[1]+ybase))**2)
+                    dist=math.sqrt((winnerPcCrd[0]-cl[0])**2+(winnerPcCrd[1]-cl[1])**2)+math.sqrt((loserPcCrd[0]-cl[0])**2+(loserPcCrd[1]-cl[1])**2)
                     if cli==0:
                         holdcli=cli
                         holddist=dist
                     elif holddist > dist:
                         holdcli=cli
                         holddist=dist
-                #newColList.append(colList[holdcli])
-                newColList.append((colList[holdcli][0]+xbase,colList[holdcli][1]+ybase))
+                newColList.append(colList[holdcli])
                 colList=newColList
             if len(colList)!=1:
                 # ここに来る事はない筈だが。あった場合は処理を中止させて内容要確認
@@ -575,8 +560,7 @@ def main(filePath, debug=False, processtimelog=False):
             for rpci,rpc in enumerate(rejPeakCandidates):
                 print(f"{el} rejPeakCandidates:{rpci} {rpc}")
         # 最後に不合格になったピーク候補が残っていれば除外する
-        #rpcCordSet={rpc for rpc in rejPeakCandidates}
-        rpcCordSet={(rpc[0]+xbase,rpc[1]+ybase) for rpc in rejPeakCandidates}
+        rpcCordSet={rpc for rpc in rejPeakCandidates}
         peakCandidates=[pc for pc in peakCandidates if pc[1] not in rpcCordSet]
 # 時間測定
         if processtimelog:
