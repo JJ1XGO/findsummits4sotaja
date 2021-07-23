@@ -1,9 +1,0 @@
-geojson
-matplotlib
-numpy
-opencv-contrib-python
-opencv-python
-openpyxl
-Pillow
-requests
-tqdm
