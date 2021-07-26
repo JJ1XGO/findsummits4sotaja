@@ -59,6 +59,9 @@ def main(filePath, debug=False, processtimelog=False):
     peakColProminence=[]
     print("analyzing start")
     for el in tqdm(elvslist):
+        # 海面に達した時は処理しない
+        if el==0:
+            continue
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
         img=np.zeros(elevs.shape,dtype=np.uint8)
@@ -123,7 +126,7 @@ def main(filePath, debug=False, processtimelog=False):
             if genCnt < genCntt:
                 genCnt=genCntt
             # 以下はピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
-            if el<config["VAL"].getint("MINIMUM_PROMINENCE"):
+            if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5: # -5mまで対象とする
                 continue
             # 親もいなければピーク候補にいるか確認
             if hrrchy[3]==-1:
@@ -547,31 +550,33 @@ def main(filePath, debug=False, processtimelog=False):
                 csv.writer(f).writerow([el,"update peakCandidates",td.total_seconds()])
             start=datetime.datetime.now()
 #
-    # 最後、1番標高の高いピークをpeakColProminenceに登録する
-    colList=[list(zip(*np.where(elevs==elevs.min())))]
-    # 複数あった時は一番近い座標を採用
-    if len(colList)>1:
-        pcCrd=peakCandidates[0][1]
-        for cli,cl in enumerate(colList):
-            dist=math.sqrt((pcCrd[1]-cl[0])**2+(pcCrd[0]-cl[1])**2)
-            if cli==0:
-                holdcli=cli
-                holddist=dist
-            else:
-                if holddist > dist:
+    # 最後、残ったピーク候補をpeakColProminenceに登録する
+    colList=list(zip(*np.where(elevs==elevs.min())))
+    for pci,pc in enumerate(peakCandidates):
+        if debug:
+            print(f"{elevs.min()} peakCandidates:{pci} {pc}")
+        # 複数あった時は一番近い座標を採用
+        if len(colList)==1:
+            newColList=colList
+        elif len(colList)>1:
+            newColList=[]
+            for cli,cl in enumerate(colList):
+                dist=math.sqrt((pc[1][1]-cl[0])**2+(pc[1][0]-cl[1])**2)
+                if cli==0:
                     holdcli=cli
                     holddist=dist
-        else:
-            newColList.append((colList[holdcli][1],colList[holdcli][0]))
-        colList=newColList
-    if len(colList)!=1:
-        print(colList)
-        print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
-        assert False, "コル座標がみつからない。もしくは複数存在。内容要確認"
-    popPc=peakCandidates.pop(0)   # ピーク候補から削除
-    # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
-    prominence=float(Decimal(str(popPc[0]))-Decimal(str(elevs.min())))
-    peakColProminence.append((popPc,(elevs.min(),colList[0][0]),prominence))
+                elif holddist > dist:
+                    holdcli=cli
+                    holddist=dist
+            else:
+                newColList.append((colList[holdcli][1],colList[holdcli][0]))
+        elif len(colList)==0:
+            print(colList)
+            print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
+            assert False, "コル座標がみつからない。内容要確認"
+        # ピークとコルの標高差がminimumProminence以上あればpeakColProminenceに追加
+        prominence=float(Decimal(str(pc[0]))-Decimal(str(elevs.min())))
+        peakColProminence.append((pc,(elevs.min(),newColList[0]),prominence))
     peakColProminence.sort(key=itemgetter(0,1,2), reverse=True)
     for pcli,pcl in enumerate(peakColProminence):
         print(f"peakColProminence:{pcli} {pcl}")
