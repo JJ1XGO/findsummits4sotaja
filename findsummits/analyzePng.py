@@ -59,26 +59,10 @@ def main(filePath, debug=False, processtimelog=False):
     peakColProminence=[]
     print("analyzing start")
     for el in tqdm(elvslist):
-        # イメージが大きくなると処理時間が掛かるので、必要最低限のエリアだけに絞る
-        ycrds,xcrds=np.where(elevs>=el)
-        ybase=ycrds.min()
-        ymax=ycrds.max()
-        xbase=xcrds.min()
-        xmax=xcrds.max()
-        #print(f"y min:{ycrds.min()} max:{ycrds.max()}")
-        #print(f"x min:{xcrds.min()} max:{xcrds.max()}")
-        #print(f"(y,x):{list(zip(ycrds,xcrds))}")
-        ycrds[:]-=ycrds.min()
-        xcrds[:]-=xcrds.min()
-        #print(f"y min:{ycrds.min()} max:{ycrds.max()} ylen:{ycrds.max()-ycrds.min()+1}")
-        #print(f"x min:{xcrds.min()} max:{xcrds.max()} xlen:{xcrds.max()-xcrds.min()+1}")
-        #print(f"(y,x):{list(zip(ycrds,xcrds))}")
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
-        #img=np.zeros(elevs.shape,dtype=np.uint8)
-        #img[elevs>=el]=255
-        img=np.zeros([ymax-ybase+1,xmax-xbase+1],dtype=np.uint8)
-        img[ycrds,xcrds]=255
+        img=np.zeros(elevs.shape,dtype=np.uint8)
+        img[elevs>=el]=255
         # 輪郭を抽出する。最初はベタ塗りの画像から親の輪郭だけ抽出したいので
         # 最も外側の輪郭のみ(cv2.RETR_EXTERNAL)のメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
         # 子供がいたらそれは凹地なので気にしない
@@ -91,8 +75,7 @@ def main(filePath, debug=False, processtimelog=False):
             start=datetime.datetime.now()
 #
         # 輪郭を描画する
-        #img=np.zeros(img.shape,dtype=np.uint8)
-        img=np.zeros([ymax-ybase+1,xmax-xbase+1],dtype=np.uint8)
+        img=np.zeros(img.shape,dtype=np.uint8)
         cv2.drawContours(img, contours, -1, 255, thickness=1)
 #        for hi,hrrchy in enumerate(hierarchy[0]):
 #            if hrrchy[3]==-1:   # 親の時に
@@ -100,15 +83,10 @@ def main(filePath, debug=False, processtimelog=False):
 #                cv2.drawContours(img, contours, hi, 255, thickness=1, hierarchy=hierarchy, maxLevel=1)
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
-            #img[xy[1],xy[0]]=255
-            img[xy[1]-ybase,xy[0]-xbase]=255
+            img[xy[1],xy[0]]=255
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        # 元の座標に戻す
-        for ct in contours:
-            ct[:,:,0]+=xbase
-            ct[:,:,1]+=ybase
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
