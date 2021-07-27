@@ -101,7 +101,7 @@ def makeGeojson():
         featureSummit=geojson.Feature(
             geometry=pointSummit,id=p[12],
             properties={
-                "name": p[13],
+                "name": p[12]+" "+p[13],
                 "AltM": p[14]+"m",
 				"_markerType": "Icon",
 				"_iconUrl": config["URL"][f"ICONSUMMIT"+summitScore],

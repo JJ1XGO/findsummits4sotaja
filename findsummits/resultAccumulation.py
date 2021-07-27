@@ -83,27 +83,28 @@ def main(filePath):
     # summitsListとの突き合わせ
     matchCnt=0
     for npcp in newPeakColProminencs:
-        for sl in summitsList:
-            # ピクセル座標で突き合わせる
-            if abs(npcp[1][0]-sl[17][0])<=config["VAL"].getint("ERROR_TOLERANCE")\
-            and abs(npcp[1][1]-sl[17][1])<=config["VAL"].getint("ERROR_TOLERANCE"):
-                # 一致したら後ろに追加
-                npcp.append(sl[0])          # SummitCode
-                npcp.append(sl[3])          # SummitName
-                npcp.append(sl[4])          # AltM
-                npcp.append(sl[17])         # ピクセル座標
-                npcp.append([sl[8],sl[9]])  # [Longitude,Latitude]
-                sl.append("match")  # summitsListの後ろに追加
-                matchCnt+=1
-                break
+        for dif in range(config["VAL"].getint("ERROR_TOLERANCE")):
+            for sl in summitsList:
+                # ピクセル座標で突き合わせる。"match"が入っていれば19になる
+                if len(sl)!=19 and abs(npcp[1][0]-sl[17][0])<=dif and abs(npcp[1][1]-sl[17][1])<=dif:
+                    # 一致したら後ろに追加
+                    npcp.append(sl[0])          # SummitCode
+                    npcp.append(sl[3])          # SummitName
+                    npcp.append(sl[4])          # AltM
+                    npcp.append(sl[17])         # ピクセル座標
+                    npcp.append([sl[8],sl[9]])  # [Longitude,Latitude]
+                    sl.append("match")  # summitsListの後ろに追加
+                    matchCnt+=1
+                    break
 #    for npcp in newPeakColProminencs:
 #        print(npcp,len(npcp))
     if matchCnt!=len(summitsList):
+        for npcp in newPeakColProminencs:
+            if len(npcp)!=13:
+                    print(f"newPeakColProminencs:{npcp}")
         for sl in summitsList:
             if len(sl)!=19: # "match"が入っていれば19になる
-                print(sl)
-        for npcp in newPeakColProminencs:
-            print(npcp)
+                print(f"summitsList:{sl}")
         assert False, "summitsListとのマッチ件数不一致。内容要確認"
 #
     # SummitCodeがついたものとプロミネンスがninimumProminence以上のものだけ残してあとは捨てる

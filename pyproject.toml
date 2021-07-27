@@ -16,7 +16,6 @@ tqdm = "^4.61.2"
 numpy = "^1.21.1"
 
 [tool.poetry.dev-dependencies]
-Cython = "^0.29.24"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
