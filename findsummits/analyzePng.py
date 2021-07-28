@@ -616,12 +616,13 @@ def main(filePath, debug=False, processtimelog=False):
     plt.savefig(f'{config["DIR"]["IMAGE"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf', bbox_inches="tight")
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
+    return result
 #
 if __name__ == '__main__':
     print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
     args = sys.argv[1:]
     if len(args)>0:
-        main(*args)
+        ret=main(*args)
     else:
         print("pngファイルを指定してください")
     print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")

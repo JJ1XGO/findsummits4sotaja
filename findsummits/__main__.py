@@ -1,4 +1,10 @@
-if __name__ == '__main__':
+import argparse
+import meshcd2png
+import analyzePng
+import resultMerge
+import resultOutput
+#
+def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("meshcd",help="基準地域メッシュコード(1次or2次)",type=int)
     group=parser.add_mutually_exclusive_group()
@@ -13,3 +19,6 @@ if __name__ == '__main__':
     ret=analyzePng.main(filePath=ret)
     ret=resultMerge.main(filePath=ret)
     resultOutput.main()
+#
+if __name__ == '__main__':
+    main()

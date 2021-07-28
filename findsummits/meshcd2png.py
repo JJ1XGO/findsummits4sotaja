@@ -189,8 +189,7 @@ def main(meshcd,start2ndmeshcd,end2ndmeshcd):
         # 8進だからややこしいけど、計算式はコレ
         #tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
         if end2ndmeshcd==None:
-            end2ndmesh=mesh
-            end2ndmeshcd=str(mesh)
+            end2ndmeshcd=mesh
         else:
             assert len(str(end2ndmeshcd))==6, "end2ndmeshcdには2次メッシュコード(6桁)を指定してください"
         optarg=end2ndmeshcd
