@@ -2,6 +2,7 @@ import sys
 import datetime
 import os
 import configparser
+import argparse
 import numpy as np
 import requests
 from requests.packages.urllib3.util.retry import Retry
@@ -173,40 +174,32 @@ def fetch_scope_tiles(north_west, south_east):
             ],axis=1) for y in range(len(y_range))
         ],axis=0)
 #-------------Main---------------------------------
-def main(meshcd,quarter="00"):
-#def main(meshcd="",quarter="00",start="",end=""):
+def main(meshcd,start2ndmeshcd,end2ndmeshcd):
     print(f"{__name__}: Started @{datetime.datetime.now()}")
 #
     # 最北西と再南東の緯度/経度を得るため該当するメッシュコードを求める
-    #assert len(start)==len(end), "from/toには2次メッシュコードを指定してください"
-    #if len(start)==0 and len(end)==0:
-    #    print("start,end=0")
-    #    print(start,end)
-    #    pass
-    #elif len(start)==6 and len(end)==6:
-    #    print("start,end=6")
-    #    print(start,end)
-    #    meshcd=start
-    #    quarter=end
-    #else:
-    #    print("start,end>6")
-    #    print(start,end)
-    #    assert False, "from/toには2次メッシュコードを指定してください"
-    if len(meshcd)==4:
-        mesh=int(meshcd)*100+int(quarter[0])*40+int(quarter[1])*4
+    if len(str(meshcd))==4:
+        if start2ndmeshcd==None:
+            start2ndmeshcd="00"
+        optarg=start2ndmeshcd
+        mesh=int(meshcd)*100+int(start2ndmeshcd)
         tmpMesh=mesh+10100
-    elif len(meshcd)==6:
+    elif len(str(meshcd))==6:
         mesh=int(meshcd)
         # 8進だからややこしいけど、計算式はコレ
-        tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
-        #if len(end)==0:
-        #    # 8進だからややこしいけど、計算式はコレ
-        #    tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
-        #else:
-        #    tmpMesh=int(end)+((int(end)%10+1)//8)*100+(int(end)%10+1)//8*10+(1-2*((int(end)%10+1)//8))
-    #else:
-    #    print(meshcd)
-    #    print(len(meshcd))
+        #tmpMesh=mesh+((mesh%100//10+4)//8)*10000+((mesh%10+4)//8)*100+(1-2*((mesh%100//10+4)//8))*40+(1-2*((mesh%10+4)//8))*4
+        if end2ndmeshcd==None:
+            end2ndmesh=mesh
+            end2ndmeshcd=str(mesh)
+        else:
+            assert len(str(end2ndmeshcd))==6, "end2ndmeshcdには2次メッシュコード(6桁)を指定してください"
+        optarg=end2ndmeshcd
+        end2ndmesh1=(end2ndmeshcd//100)*100
+        end2ndmesh2=end2ndmeshcd%100+11
+        # 8進だからややこしいけど、計算式はコレ
+        tmpMesh=end2ndmesh1+(end2ndmesh2//80)*10000+(end2ndmesh2%10//8)*100+end2ndmesh2-(end2ndmesh2//80)*80-(end2ndmesh2%10//8)*8
+    else:
+        assert False, "meshcdにはメッシュコード(1次:4桁/2次:6桁)を指定してください"
     #print(mesh,tmpMesh)
     #return
 #
@@ -222,7 +215,7 @@ def main(meshcd,quarter="00"):
     print(scope_tile.shape)
 # 纏めた標高タイルを保存
     os.makedirs(config["DIR"]["TILE"] ,exist_ok=True)
-    result=f'{config["DIR"]["TILE"]}/{meshcd}-{quarter}_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
+    result=f'{config["DIR"]["TILE"]}/{meshcd}-{optarg}_{config["VAL"].getint("ZOOM_LVL")}-{startTileX}-{startTileY}_{config["VAL"].getint("ZOOM_LVL")}-{endTileX}-{endTileY}.png'
     #img_scope_tile.save(result)
     # イメージの書き込みはpillowよりopencvの方が速いのでopencvを使う
     cv2.imwrite(result,cv2.cvtColor(scope_tile,cv2.COLOR_RGB2BGR))
@@ -231,10 +224,14 @@ def main(meshcd,quarter="00"):
     return result
 #---
 if __name__ == '__main__':
-    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
-    args = sys.argv[1:]
-    if len(args)>0:
-        ret=main(*args)
-    else:
-        print("メッシュ番号を指定してください")
-    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
+    parser=argparse.ArgumentParser()
+    parser.add_argument("meshcd",help="基準地域メッシュコード(1次or2次)",type=int)
+    group=parser.add_mutually_exclusive_group()
+    group.add_argument("-s","--start2ndmeshcd",choices=["04","40","44"]
+        ,help="1次メッシュ指定時、スタート基点をずらす場合の2次メッシュコード下2桁")
+    group.add_argument("-e","--end2ndmeshcd",type=int
+        ,help="2次メッシュ指定時の終了2次メッシュコード")
+    args=parser.parse_args()
+    ret=main(meshcd=args.meshcd,
+        start2ndmeshcd=args.start2ndmeshcd,
+        end2ndmeshcd=args.end2ndmeshcd)
