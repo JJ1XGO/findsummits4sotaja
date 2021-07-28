@@ -1,0 +1,7 @@
+.venv/
+data/
+images/
+pcps/
+results/
+tiles/
+findsummits/__pycache__/
