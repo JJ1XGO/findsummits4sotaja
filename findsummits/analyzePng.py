@@ -2,6 +2,7 @@ import sys
 import datetime
 import os
 import configparser
+import argparse
 import numpy as np
 #import io
 import collections
@@ -153,31 +154,34 @@ def main(filePath, debug=False, processtimelog=False):
                             print(f"{el} borderline check pass:{cl}")
                     if debug:
                         print(f"{el} contpointList:{contpointList}")
-                    if len(peakCandidates)==0:  # 初回はそのまま通す
-                        contpointList2=contpointList
-                    else:
-                        # 些細なピークも拾ってしまうため、既にピーク候補に登録されている近くのピークだったら落選させる
-                        contpointList2=[]
-                        if len(contpointList)>0:
-                            for pc in peakCandidates:
-                                if debug:
-                                    print(f"{el} filter size check:{pc}")
-                                for cl in contpointList:
-                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
-                                    and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
-                                        break
-                                else:
-                                    continue
-                                break
-                            else:
-                                # 1次審査を全て突破した人だけピーク候補にノミネート
-                                contpointList2.append(cl)
-                                if debug:
-                                    print(f"{el} filter size check pass:{cl}")
-                    #print(f"{el} contpointList2:{contpointList2}")
-                    if len(contpointList2)>0:    # 残った座標があれば
-                        contpointList2.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
-                        peakCandidates.append((el,contpointList2[0])) # 1番先頭をピーク候補に追加
+                    #if len(peakCandidates)==0:  # 初回はそのまま通す
+                    #    contpointList2=contpointList
+                    #else:
+                    #    # 些細なピークも拾ってしまうため、既にピーク候補に登録されている近くのピークだったら落選させる
+                    #    contpointList2=[]
+                    #    if len(contpointList)>0:
+                    #        for pc in peakCandidates:
+                    #            if debug:
+                    #                print(f"{el} filter size check:{pc}")
+                    #            for cl in contpointList:
+                    #                if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
+                    #                and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
+                    #                    break
+                    #            else:
+                    #                continue
+                    #            break
+                    #        else:
+                    #            # 1次審査を全て突破した人だけピーク候補にノミネート
+                    #            contpointList2.append(cl)
+                    #            if debug:
+                    #                print(f"{el} filter size check pass:{cl}")
+                    ##print(f"{el} contpointList2:{contpointList2}")
+                    #if len(contpointList2)>0:    # 残った座標があれば
+                    #    contpointList2.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
+                    #    peakCandidates.append((el,contpointList2[0])) # 1番先頭をピーク候補に追加
+                    if len(contpointList)>0:    # 残った座標があれば
+                        contpointList.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
+                        peakCandidates.append((el,contpointList[0])) # 1番先頭をピーク候補に追加
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -602,7 +606,14 @@ def main(filePath, debug=False, processtimelog=False):
     rgb = ls.shade(elevs, cm.rainbow)
     cs = ax.imshow(elevs)
     ax.imshow(rgb)
-#
+#    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
+    args = sys.argv[1:]
+    if len(args)>0:
+        ret=main(*args)
+    else:
+        print("pngファイルを指定してください")
+    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
+
     # create an axes on the right side of ax. The width of cax will be 2%
     # of ax and the padding between cax and ax will be fixed at 0.05 inch.
     divider = make_axes_locatable(ax)
@@ -619,10 +630,11 @@ def main(filePath, debug=False, processtimelog=False):
     return result
 #
 if __name__ == '__main__':
-    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
-    args = sys.argv[1:]
-    if len(args)>0:
-        ret=main(*args)
-    else:
-        print("pngファイルを指定してください")
-    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
+    parser=argparse.ArgumentParser()
+    parser.add_argument("filePath",help="pngファイルのファイルパス")
+    parser.add_argument("-d", "--debug", help="show debug info",
+        action="store_true")
+    parser.add_argument("-p", "--processtimelog", help="save time log info",
+        action="store_true")
+    args=parser.parse_args()
+    ret=main(filePath=args.filePath, debug=args.debug, processtimelog=args.processtimelog)
