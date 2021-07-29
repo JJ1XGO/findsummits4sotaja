@@ -53,7 +53,7 @@ def main(filePath, debug=False, processtimelog=False):
     if processtimelog:
         td=datetime.datetime.now()-start
         with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
-            csv.writer(f).writerow([el,"image read etc.",td.total_seconds()])
+            csv.writer(f).writerow(["--","image read etc.",td.total_seconds()])
         start=datetime.datetime.now()
 #
     peakCandidates=[]
@@ -81,16 +81,14 @@ def main(filePath, debug=False, processtimelog=False):
         # 輪郭を描画する
         img=np.zeros(img.shape,dtype=np.uint8)
         cv2.drawContours(img, contours, -1, 255, thickness=1)
-#        for hi,hrrchy in enumerate(hierarchy[0]):
-#            if hrrchy[3]==-1:   # 親の時に
-#                # 自分と子だけ(maxLevel=1)の輪郭線を描画する
-#                cv2.drawContours(img, contours, hi, 255, thickness=1, hierarchy=hierarchy, maxLevel=1)
         # ピークをプロットして輪郭とピークだけの画像にする
         for hh,xy in peakCandidates:
             img[xy[1],xy[0]]=255
         # 再度輪郭を抽出する。2回目は階層構造と詳細な座標を取得したいので
         # 階層あり(cv2.RETR_TREE)の描画プロット全て抽出(cv2.CHAIN_APPROX_NONE)
         contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        # hierarchyは最初の次元がサイズ1で扱い辛いので、最初の次元を削除したビューを生成する
+        hierarchy2d=hierarchy.squeeze(0)
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -99,7 +97,8 @@ def main(filePath, debug=False, processtimelog=False):
             start=datetime.datetime.now()
 #
         if debug:
-            print(hierarchy)
+            #print(hierarchy)
+            print(hierarchy2d)
 # debug
 #        if el==2078.4:
 #            contimg=np.zeros(img.shape)
@@ -110,12 +109,7 @@ def main(filePath, debug=False, processtimelog=False):
 #                cv2.drawContours(contimg, contours, i, 255, thickness=1)
 #                cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}-{i}.png',contimg)
 # debug
-        # numpyのインデックス指定でのアクセスは時間が掛かるとの事なのでリスト化する
-        hierarchyList=hierarchy[0].tolist()
-        # 先ずは何世代までいるか確認
-        nextHrrchy=0
-        #for hrrchy in hierarchyList:
-        for hi,hrrchy in enumerate(hierarchyList):
+        for hi,hrrchy in enumerate(hierarchy2d):
             # ピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
             if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5: # -5mまで対象とする
                 continue
@@ -153,7 +147,7 @@ def main(filePath, debug=False, processtimelog=False):
         if processtimelog:
             td=datetime.datetime.now()-start
             with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
-                csv.writer(f).writerow([el,"generation check",td.total_seconds()])
+                csv.writer(f).writerow([el,"new peakCandidate check",td.total_seconds()])
             start=datetime.datetime.now()
 #
         if debug:
@@ -163,10 +157,10 @@ def main(filePath, debug=False, processtimelog=False):
         if len(peakCandidates)<=1:
             continue
         # 家系図を作成
-        familyTree=[None]*len(hierarchyList)    # 必要な数だけ最初に配列作っておく
+        familyTree=[None]*len(hierarchy2d)    # 必要な数だけ最初に配列作っておく
         rejPeakCandidates=[]
         parentCnt=0
-        for hi,hrrchy in enumerate(hierarchyList):
+        for hi,hrrchy in enumerate(hierarchy2d):
             if hrrchy[3]== -1:  # 親だったら(親がいないのが親)
                 selfGeneration=1
                 parentCnt+=1
@@ -190,7 +184,7 @@ def main(filePath, debug=False, processtimelog=False):
                         contimg=np.zeros(img.shape)
                         cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                         cv2.imwrite(f'{config["DIR"]["IMAGE"]}/{el}.png',contimg)
-                        print(f"{el} hierarchy:{hierarchyList}")
+                        print(f"{el} hierarchy:{hierarchy2d}")
                         print(f"{el} contours[{hi}]:{contours[hi]}")
                         print(f"{el} contours[{hrrchy[2]}]:{contours[hrrchy[2]]}")
                         for i,pft in enumerate(familyTree):
@@ -261,14 +255,14 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(f"{el} ft(1) {ft})
+                print(f"{el} ft(1) {ft}")
         # 家系図の情報整理
         for ft in familyTree:
             if int(ft[1])%100000==0: # 親の時
                 if ft[0]==0:
                     pass
                 else:   # 1つ前の親の情報を更新
-                    if hierarchyList[parentIdx][2]==-1:
+                    if hierarchy2d[parentIdx][2]==-1:
                         pass    # 子がいなかったら更新しない
                     else:
                         if len(foundPeaksCandidate)!=0:
@@ -288,7 +282,7 @@ def main(filePath, debug=False, processtimelog=False):
                     if int(ft[1])%100==0:    # 子だったら
                         pass    # 何もしない
                     else:   # 孫だったら自分の親(=子)の情報を書き換える
-                        childIdx=hierarchyList[ft[0]][3]
+                        childIdx=hierarchy2d[ft[0]][3]
                         # 子にピーク候補の情報がない、もしくは子のピーク候補Noの方が自分(孫)のピーク候補No以上の時
                         if familyTree[childIdx][4]==-1 or familyTree[childIdx][4]>ft[4]:
                             if familyTree[childIdx][4]!=-1:
@@ -321,7 +315,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(f"{el} ft(2) {ft})
+                print(f"{el} ft(2) {ft}")
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -418,7 +412,7 @@ def main(filePath, debug=False, processtimelog=False):
                 #cv2.drawContours(contimg, contours, -1, 255, thickness=1)
                 #cv2.imwrite(f"test/{el}.png",contimg)
                 #print(f"contours:{contours}")
-                for i,hl in enumerate(hierarchyList):
+                for i,hl in enumerate(hierarchy2d):
                     print(f"{el} hierarchy:{i} {hl}")
                 for i,pft in enumerate(familyTree):
                     print(f"{el} familyTree:{i} {pft}")
