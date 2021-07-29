@@ -114,7 +114,6 @@ def main(filePath, debug=False, processtimelog=False):
         hierarchyList=hierarchy[0].tolist()
         # 先ずは何世代までいるか確認
         nextHrrchy=0
-        genCnt=0
         #for hrrchy in hierarchyList:
         for hi,hrrchy in enumerate(hierarchyList):
             # ピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
@@ -158,7 +157,6 @@ def main(filePath, debug=False, processtimelog=False):
             start=datetime.datetime.now()
 #
         if debug:
-            print(f"{el} 世代階層:{genCnt}")
             for pci,pc in enumerate(peakCandidates):
                 print(f"{el} peakCandidates:{pci} {pc}")
         # ピーク候補が1人以下だったら次が出てくるまで飛ばす
@@ -263,7 +261,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(el,ft)
+                print(f"{el} ft(1) {ft})
         # 家系図の情報整理
         for ft in familyTree:
             if int(ft[1])%100000==0: # 親の時
@@ -323,7 +321,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(el,ft)
+                print(f"{el} ft(2) {ft})
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
