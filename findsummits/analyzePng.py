@@ -115,25 +115,18 @@ def main(filePath, debug=False, processtimelog=False):
         # 先ずは何世代までいるか確認
         nextHrrchy=0
         genCnt=0
-#        for hrrchy in hierarchyList:
+        #for hrrchy in hierarchyList:
         for hi,hrrchy in enumerate(hierarchyList):
-            if hrrchy[2]!= -1:  # 子供がいたら次の人へ
-                continue
-            genCntt=1
-            nextHrrchy=hrrchy
-            while nextHrrchy[3] != -1:  # 親がいなくなるまで遡る
-                genCntt+=1
-                nextHrrchy=hierarchyList[nextHrrchy[3]]
-            if genCnt < genCntt:
-                genCnt=genCntt
-            # 以下はピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
+            # ピーク候補に入れるかどうかの処理なので現在の標高がMINIMUM_PROMINENCEより低ければ次の人へ
             if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5: # -5mまで対象とする
+                continue
+            if hrrchy[2]!= -1:  # 子供がいたら次の人へ
                 continue
             # 親もいなければピーク候補にいるか確認
             if hrrchy[3]==-1:
                 contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
                 for pc in peakCandidates:
-                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあれば何もしない
+                    if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあればこのループを抜けて次の人
                         break
                 else:   # なければピーク候補に入れる
                     contpointList=[]
@@ -154,31 +147,6 @@ def main(filePath, debug=False, processtimelog=False):
                             print(f"{el} borderline check pass:{cl}")
                     if debug:
                         print(f"{el} contpointList:{contpointList}")
-                    #if len(peakCandidates)==0:  # 初回はそのまま通す
-                    #    contpointList2=contpointList
-                    #else:
-                    #    # 些細なピークも拾ってしまうため、既にピーク候補に登録されている近くのピークだったら落選させる
-                    #    contpointList2=[]
-                    #    if len(contpointList)>0:
-                    #        for pc in peakCandidates:
-                    #            if debug:
-                    #                print(f"{el} filter size check:{pc}")
-                    #            for cl in contpointList:
-                    #                if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
-                    #                and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
-                    #                    break
-                    #            else:
-                    #                continue
-                    #            break
-                    #        else:
-                    #            # 1次審査を全て突破した人だけピーク候補にノミネート
-                    #            contpointList2.append(cl)
-                    #            if debug:
-                    #                print(f"{el} filter size check pass:{cl}")
-                    ##print(f"{el} contpointList2:{contpointList2}")
-                    #if len(contpointList2)>0:    # 残った座標があれば
-                    #    contpointList2.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
-                    #    peakCandidates.append((el,contpointList2[0])) # 1番先頭をピーク候補に追加
                     if len(contpointList)>0:    # 残った座標があれば
                         contpointList.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
                         peakCandidates.append((el,contpointList[0])) # 1番先頭をピーク候補に追加
@@ -193,9 +161,6 @@ def main(filePath, debug=False, processtimelog=False):
             print(f"{el} 世代階層:{genCnt}")
             for pci,pc in enumerate(peakCandidates):
                 print(f"{el} peakCandidates:{pci} {pc}")
-        #親世代だけだったら子供が出てくるまで飛ばす
-        if genCnt==1:
-            continue
         # ピーク候補が1人以下だったら次が出てくるまで飛ばす
         if len(peakCandidates)<=1:
             continue
@@ -209,28 +174,16 @@ def main(filePath, debug=False, processtimelog=False):
                 parentCnt+=1
                 childCnt=0
                 gChildCnt=0
-                g2gChildCnt=0   # ひ孫用カウンタ
-                g3gChildCnt=0   # 玄孫用カウンタ
-                g4gChildCnt=0   # 来孫用カウンタ
             else:   # 親以外
                 if hrrchy[1]==-1:   # 自分が長兄だったら
                     # 親の番号から自分の世代を求める
                     myPfNumber=int(familyTree[hrrchy[3]][1])
-                    if myPfNumber%(10**((genCnt-1)*2))==0:  # 自分の親が親世代なら
+                    if myPfNumber%100000==0:  # 自分の親が親世代なら
                         selfGeneration=2
                         childCnt+=1
-                    elif myPfNumber%(10**((genCnt-2)*2))==0:  # 自分の親が子世代なら
+                    elif myPfNumber%100==0:  # 自分の親が子世代なら
                         selfGeneration=3
                         gChildCnt+=1
-                    elif myPfNumber%(10**((genCnt-3)*2))==0:  # 自分の親が孫世代なら
-                        selfGeneration=4
-                        g2gChildCnt+=1
-                    elif myPfNumber%(10**((genCnt-4)*2))==0:  # 自分の親が玄孫世代なら
-                        selfGeneration=5
-                        g3gChildCnt+=1
-                    elif myPfNumber%(10**((genCnt-5)*2))==0:  # 自分の親が来孫世代なら
-                        selfGeneration=6
-                        g4gChildCnt+=1
                     else:
                         for i in range(len(contours)):
                             contimg=np.zeros(img.shape)
@@ -245,52 +198,32 @@ def main(filePath, debug=False, processtimelog=False):
                         for i,pft in enumerate(familyTree):
                             print(f"{el} familyTree:{i} {pft}")
                         print(f"{__name__}: Abnormal Termination @{datetime.datetime.now()}")
-                        assert False, "昆孫以降は想定外。内容要確認"
+                        assert False, "曾孫以降は想定外。内容要確認"
                 else:
                     # 上の兄弟の番号から自分の世代を求める
                     myBfNumber=int(familyTree[hrrchy[1]][1])
-                    if myBfNumber%(10**((genCnt-2)*2))==0:  # 自分の兄が子世代なら
+                    if myBfNumber%100==0:  # 自分の兄が子世代なら
                         selfGeneration=2
                         childCnt+=1
-                    elif myBfNumber%(10**((genCnt-3)*2))==0:  # 自分の兄が孫世代なら
+                    else:  # 自分の兄が孫世代なら
                         selfGeneration=3
                         gChildCnt+=1
-                    elif myBfNumber%(10**((genCnt-4)*2))==0:  # 自分の兄が孫世代なら
-                        selfGeneration=4
-                        g2gChildCnt+=1
-                    elif myBfNumber%(10**((genCnt-5)*2))==0:  # 自分の兄が玄孫世代なら
-                        selfGeneration=5
-                        g3gChildCnt+=1
-                    elif myBfNumber%(10**((genCnt-6)*2))==0:  # 自分の兄が来孫世代なら
-                        selfGeneration=6
-                        g4gChildCnt+=1
                 # 自分より下の世代のカウンタクリア
                 if selfGeneration<=2:
                     gChildCnt=0
-                if selfGeneration<=3:
-                    g2gChildCnt=0   # ひ孫用カウンタ
-                if selfGeneration<=4:
-                    g3gChildCnt=0   # 玄孫用カウンタ
-                if selfGeneration<=5:
-                    g4gChildCnt=0   # 来孫用カウンタ
             # 簡単な説明を追加
-            if selfGeneration%2 != 0:   # 奇数世代(親、孫、玄孫)
+            if selfGeneration%2 != 0:   # 奇数世代(親、孫)
                 if hrrchy[2] == -1: # 子供がいなければおそらくピーク
                     hclass="maybe a peak"
                 else:
                     hclass="contour outside"    # 子供がいれば等高線の外枠
-            else:   # 偶数世代(子、曾孫、来孫)
+            else:   # 偶数世代(子)
                 if hrrchy[2] == -1: # 子供がいなければ通常の等高線内枠
                     hclass="contour inside"
                 else:
                     hclass="contour inside (my child maybe a peak)"    # 子供がいればピークを含む等高線の内枠(多分)
             # 番号を計算
-            fNumber=str(int(parentCnt*(10**((genCnt-1)*2))+\
-                    childCnt*(10**((genCnt-2)*2))+\
-                    gChildCnt*(10**((genCnt-3)*2))+\
-                    g2gChildCnt*(10**((genCnt-4)*2))+\
-                    g3gChildCnt*(10**((genCnt-5)*2))+\
-                    g4gChildCnt*(10**((genCnt-6)*2))))
+            fNumber=str(int(parentCnt*100000+childCnt*100+gChildCnt))
             # ピーク候補の情報を付加する
             # 輪郭線を構成する座標の一覧を作成
             cpSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
@@ -320,7 +253,7 @@ def main(filePath, debug=False, processtimelog=False):
                 pcAlt=None      # ピーク候補の標高
                 pcCord=None     # ピーク候補の座標
             # 最初に用意しておいた配列に入れる
-            familyTree[hi]=[hi,fNumber.zfill((genCnt*2)+1),hclass,pcCnt,pcNo,pcAlt,pcCord]
+            familyTree[hi]=[hi,fNumber.zfill(8),hclass,pcCnt,pcNo,pcAlt,pcCord]
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -333,7 +266,7 @@ def main(filePath, debug=False, processtimelog=False):
                 print(el,ft)
         # 家系図の情報整理
         for ft in familyTree:
-            if int(ft[1])%(10**((genCnt-1)*2)) == 0: # 親の時
+            if int(ft[1])%100000==0: # 親の時
                 if ft[0]==0:
                     pass
                 else:   # 1つ前の親の情報を更新
@@ -351,10 +284,10 @@ def main(filePath, debug=False, processtimelog=False):
                 foundPeaksCandidate=[]
             else:   # 親以外
                 # ピーク候補の番号が今回初めてだったら
-                if ft[3]==1 and ft[4] not in foundPeaksCandidate:
+                if ft[3]==1 and ft[4] not in set(foundPeaksCandidate):
                     foundPeaksCandidate.append(ft[4]) # 見つけたピーク候補の番号を控えておく
                     peakCnt+=1  # 見つけたピーク数をカウントアップ
-                    if int(ft[1])%(10**((genCnt-2)*2)) == 0:    # 子だったら
+                    if int(ft[1])%100==0:    # 子だったら
                         pass    # 何もしない
                     else:   # 孫だったら自分の親(=子)の情報を書き換える
                         childIdx=hierarchyList[ft[0]][3]
@@ -400,16 +333,16 @@ def main(filePath, debug=False, processtimelog=False):
 #
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
         for ft in familyTree:
-            if int(ft[1])%(10**((genCnt-1)*2)) != 0: # 親じゃなければ次の人
+            if int(ft[1])%100000 != 0: # 親じゃなければ次の人
                 continue
             peakCandidate2peakSw = True if ft[3] > 1 else False
             if not peakCandidate2peakSw:    # ピークを2つ持つ人が対象
                 continue
             findColFb = 0   # コルを探す時に前の子と比較するか後ろの子と比較するかのフラグを初期化
             overChild=[]
-            parentNo=int(ft[1])//(10**((genCnt-1)*2))
+            parentNo=int(ft[1])//100000
             for oc in familyTree:   # 自分と子だけの家系図作成
-                if int(oc[1])//(10**((genCnt-1)*2)) == parentNo and int(oc[1])%(10**((genCnt-2)*2)) == 0:
+                if int(oc[1])//100000==parentNo and int(oc[1])%100==0:
                     overChild.append(oc)
             if debug:
                 for oc in overChild:
@@ -606,14 +539,7 @@ def main(filePath, debug=False, processtimelog=False):
     rgb = ls.shade(elevs, cm.rainbow)
     cs = ax.imshow(elevs)
     ax.imshow(rgb)
-#    print(f"{sys.argv[0]}: Started @{datetime.datetime.now()}")
-    args = sys.argv[1:]
-    if len(args)>0:
-        ret=main(*args)
-    else:
-        print("pngファイルを指定してください")
-    print(f"{sys.argv[0]}: Finished @{datetime.datetime.now()}")
-
+#
     # create an axes on the right side of ax. The width of cax will be 2%
     # of ax and the padding between cax and ax will be fixed at 0.05 inch.
     divider = make_axes_locatable(ax)
