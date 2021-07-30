@@ -46,3 +46,9 @@ def main(filePath):
 #
     os.makedirs(config["DIR"]["IMAGE"] ,exist_ok=True)
     plt.savefig(f'{config["DIR"]["IMAGE"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf', bbox_inches="tight")
+#
+if __name__ == '__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument("filePath",help="pngファイルのファイルパス")
+    args=parser.parse_args()
+    main(filePath=args.filePath)
