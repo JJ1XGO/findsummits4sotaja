@@ -33,8 +33,8 @@ def main(filePath, debug=False, processtimelog=False):
 #
 # 時間測定
     if processtimelog:
-        os.makedirs(config["DIR"]["DATA"] ,exist_ok=True)
-        with open(config["DIR"]["DATA"]+"/processtime.csv","w") as f:
+        os.makedirs(config["LOG"]["DATA"] ,exist_ok=True)
+        with open(config["LOG"]["DATA"]+"/processtime.csv","w") as f:
             csv.writer(f).writerow(["el","func","seconds"])
         start=datetime.datetime.now()
 #
@@ -48,7 +48,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
     if processtimelog:
         td=datetime.datetime.now()-start
-        with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+        with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
             csv.writer(f).writerow(["--","image read etc.",td.total_seconds()])
         start=datetime.datetime.now()
 #
@@ -73,7 +73,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"findContours(1)",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -91,7 +91,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"findContours(2)",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -145,7 +145,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"new peakCandidate check",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -248,7 +248,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"make familyTree",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -318,7 +318,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"update familyTree",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -486,7 +486,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"check familyTree",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -499,7 +499,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["DIR"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"update peakCandidates",td.total_seconds()])
             start=datetime.datetime.now()
 #
