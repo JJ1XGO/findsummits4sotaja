@@ -10,10 +10,6 @@ import math
 from decimal import Decimal
 import cv2
 from operator import itemgetter
-import matplotlib.pyplot as plt
-from matplotlib.colors import LightSource
-import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
 # 設定ファイル読み込み
 config=configparser.ConfigParser()
@@ -62,6 +58,9 @@ def main(filePath, debug=False, processtimelog=False):
     for el in tqdm(elvslist):
         # 海面に達した時は処理しない
         if el==0:
+            continue
+        # 標高がMINIMUM_PROMINENCE-5mより低くて、ピーク候補が1人だけになったら以下処理しない
+        if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5 and len(peakCandidates)==1:
             continue
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
@@ -255,7 +254,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(f"{el} ft(1) {ft}")
+                print(f"{el} ft(1):{ft}")
         # 家系図の情報整理
         for ft in familyTree:
             if int(ft[1])%100000==0: # 親の時
@@ -315,7 +314,7 @@ def main(filePath, debug=False, processtimelog=False):
 #
         if debug:
             for ft in familyTree:
-                print(f"{el} ft(2) {ft}")
+                print(f"{el} ft(2):{ft}")
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
@@ -338,7 +337,7 @@ def main(filePath, debug=False, processtimelog=False):
                     overChild.append(oc)
             if debug:
                 for oc in overChild:
-                    print(f"overChild:{el} {oc}")
+                    print(f"{el} overChild:{oc}")
             colList=[]
             for oci,oc in enumerate(overChild):    # 自分と子だけの家系図を舐める
                 if oci==0:  # 親の時
@@ -383,6 +382,31 @@ def main(filePath, debug=False, processtimelog=False):
                                         if elevs[ct[0][1],ct[0][0]] == el:
                                             colList.append(tuple(ct[0].tolist()))
                             break   # ループを抜ける
+#
+            if len(colList)==0:  # コル座標が見つからなかった時
+                # rejPeakCandidatesに誰かいれば、標高の高い孫に弾かれた孫なので、MINIMUM_PROMINENCE以上あれば最後に救済する
+                for rpc in rejPeakCandidates:
+                    # 先ずは家系図より自分の情報を得る
+                    salvation=False
+                    for ft in familyTree:
+                        if rpc==ft[6] and ft[5]-el>=config["VAL"].getint("MINIMUM_PROMINENCE"):
+                            loserPcNo=ft[4]
+                            loserPcCrd=rpc
+                            # 自分のfamilyNoから自分の親(子)のfamilyNoを得る
+                            childFNo=str((int(ft[1])//100)*100).zfill(8)
+                            salvation=True
+                            break
+                    if salvation:
+                        # 次に家系図より自分の親(子)の輪郭線Noを得て、子の輪郭線座標を取得する
+                        for ft in familyTree:
+                            if childFNo==ft[1]:
+                                for ct in contours[ft[0]]:
+                                    if elevs[ct[0][1],ct[0][0]] == el:
+                                        colList.append(tuple(ct[0].tolist()))
+                                break
+                        else:
+                            continue
+                        break
 #
             if len(colList)==0:  # コル座標が見つからなかった時
                 # 子が出来る前に飲み込まれた些細なピークが悪さしたと思われる。
@@ -517,32 +541,6 @@ def main(filePath, debug=False, processtimelog=False):
         for pcl in peakColProminence:
             dat=f"{pcl[0]},{pcl[1]},{pcl[2]}\n"
             f.write(dat)
-    print("generating elevation image")
-# 取り敢えず単純に等高線を引いてみる
-#    xx=np.linspace(0,elevs.shape[1],elevs.shape[1])
-#    yy=np.linspace(0,elevs.shape[0],elevs.shape[0])
-#    levels=list(np.linspace(int(elevs.min()),int(elevs.max())+2,(int(elevs.max())-int(elevs.min())+1)))
-#    elevs = np.flipud(elevs)
-#
-    fig, ax = plt.subplots()
-    fig.set_size_inches(16.53 * 2, 11.69 * 2)
-#
-    ls = LightSource(azdeg=180, altdeg=90)
-    rgb = ls.shade(elevs, cm.rainbow)
-    cs = ax.imshow(elevs)
-    ax.imshow(rgb)
-#
-    # create an axes on the right side of ax. The width of cax will be 2%
-    # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="2%", pad=0.05)
-    fig.colorbar(cs, cax=cax)
-#
-    ax.set_xticks([])
-    ax.set_yticks([])
-#
-    os.makedirs(config["DIR"]["IMAGE"] ,exist_ok=True)
-    plt.savefig(f'{config["DIR"]["IMAGE"]}/{os.path.splitext(os.path.basename(filePath))[0]}.pdf', bbox_inches="tight")
 #
     print(f"{__name__}: Finished @{datetime.datetime.now()}")
     return result
