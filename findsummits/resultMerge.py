@@ -53,10 +53,10 @@ def main(filePath):
         ] for tpcp in tmpPcp
     ]
     del tmpPcp
-    # latとlonの位置を入れ替える
-    for npcp in newPeakColProminencs:
-        npcp[2][0],npcp[2][1]=npcp[2][1],npcp[2][0]
-        npcp[5][0],npcp[5][1]=npcp[5][1],npcp[5][0]
+#    # latとlonの位置を入れ替える
+#    for npcp in newPeakColProminencs:
+#        npcp[2][0],npcp[2][1]=npcp[2][1],npcp[2][0]
+#        npcp[5][0],npcp[5][1]=npcp[5][1],npcp[5][0]
 #    for npcp in newPeakColProminencs:
 #        print(npcp)
     # summitslist.csvを読み込む
@@ -92,7 +92,7 @@ def main(filePath):
                     npcp.append(sl[3])          # SummitName
                     npcp.append(sl[4])          # AltM
                     npcp.append(sl[17])         # ピクセル座標
-                    npcp.append([sl[8],sl[9]])  # [Longitude,Latitude]
+                    npcp.append([sl[9],sl[8]])  # [Latitude,Longitude]
                     sl.append("match")  # summitsListの後ろに追加
                     matchCnt+=1
                     break

@@ -29,14 +29,14 @@ def makeXlsx():
     ws["A1"].value="SummitCode"
     ws["B1"].value="SummitName"
     ws["C1"].value="AltM"
-    ws["D1"].value="Longitude"
-    ws["E1"].value="Latitude"
+    ws["D1"].value="Latitude"
+    ws["E1"].value="Longitude"
     ws["F1"].value="Peak AltM"
-    ws["G1"].value="Peak Lon"
-    ws["H1"].value="Peak Lat"
+    ws["G1"].value="Peak Lat"
+    ws["H1"].value="Peak Lon"
     ws["I1"].value="Col AltM"
-    ws["J1"].value="Col Lon"
-    ws["K1"].value="Col Lat"
+    ws["J1"].value="Col Lat"
+    ws["K1"].value="Col Lon"
     ws["L1"].value="Prominence"
     ws["M1"].value="Registration Date"
     ws["N1"].value="Update Date"
@@ -46,14 +46,14 @@ def makeXlsx():
         ws.cell(i,1).value=p[12]         # SummitCode
         ws.cell(i,2).value=p[13]         # SummitName
         ws.cell(i,3).value=int(p[14])    # AltM
-        ws.cell(i,4).value=float(p[17])  # Longitude
-        ws.cell(i,5).value=float(p[18])  # Latitude
+        ws.cell(i,4).value=float(p[17])  # Latitude
+        ws.cell(i,5).value=float(p[18])  # Longitude
         ws.cell(i,6).value=float(p[5])   # Peak AltM
-        ws.cell(i,7).value=float(p[3])   # Peak Lon
-        ws.cell(i,8).value=float(p[4])   # Peak Lat
+        ws.cell(i,7).value=float(p[3])   # Peak Lat
+        ws.cell(i,8).value=float(p[4])   # Peak Lon
         ws.cell(i,9).value=float(p[10])  # Col AltM
-        ws.cell(i,10).value=float(p[8])  # Col Lon
-        ws.cell(i,11).value=float(p[9])  # Col Lat
+        ws.cell(i,10).value=float(p[8])  # Col Lat
+        ws.cell(i,11).value=float(p[9])  # Col Lon
         ws.cell(i,12).value=f"=F{i}-I{i}" # Prominence 持ってるけどExcelで計算させる
         # Registration Date
         ws.cell(i,13).value=openpyxl.utils.datetime.from_ISO8601(p[19])
@@ -97,7 +97,7 @@ def makeGeojson():
             summitScore="1"
         else:
             assert False, "150mより低い山がある事は想定外。内容要確認"
-        pointSummit=geojson.Point((float(p[17]),float(p[18])))
+        pointSummit=geojson.Point((float(p[18]),float(p[17])))
         featureSummit=geojson.Feature(
             geometry=pointSummit,id=p[12],
             properties={
@@ -123,7 +123,7 @@ def makeGeojson():
             peakScore="1"
         else:
             assert False, "150mより低い山がある事は想定外。内容要確認"
-        pointPeak=geojson.Point((float(p[3]),float(p[4])))
+        pointPeak=geojson.Point((float(p[4]),float(p[3])))
         featurePeak=geojson.Feature(
             geometry=pointPeak,id=p[12]+"P",
             properties={
@@ -135,7 +135,7 @@ def makeGeojson():
 				"_iconAnchor": [8,8]
             }
         )
-        pointCol=geojson.Point((float(p[8]),float(p[9])))
+        pointCol=geojson.Point((float(p[9]),float(p[8])))
         featureCol=geojson.Feature(
             geometry=pointCol,id=p[12]+"C",
             properties={
@@ -153,11 +153,11 @@ def makeGeojson():
 #        ])
 #        featureMultiLine=geojson.Feature(geometry=multiLineString,id=p[12]+"ML")
         lineStringSp=geojson.LineString([
-            (float(p[17]),float(p[18])),(float(p[3]),float(p[4]))
+            (float(p[18]),float(p[17])),(float(p[4]),float(p[3]))
         ])
         featureLineSp=geojson.Feature(geometry=lineStringSp)
         lineStringPc=geojson.LineString([
-            (float(p[3]),float(p[4])),(float(p[8]),float(p[9]))
+            (float(p[4]),float(p[3])),(float(p[9]),float(p[8]))
         ])
         featureLinePc=geojson.Feature(geometry=lineStringPc)
         featureCollection=geojson.FeatureCollection(
