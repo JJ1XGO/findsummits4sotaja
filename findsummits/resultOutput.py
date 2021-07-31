@@ -83,7 +83,9 @@ def makeGeojson():
 #    featureAll=[]
     featureCollectionAll=[]
     for p in pcpa:
-        if float(p[14])>=1500:
+        if p[12].startswith("ZZ"):
+            summitScore="NEW"
+        elif float(p[14])>=1500:
             summitScore="10"
         elif float(p[14])>=1100:
             summitScore="8"
@@ -109,7 +111,9 @@ def makeGeojson():
 				"_iconAnchor": [8,8]
             }
         )
-        if float(p[5])>=1500:
+        if p[12].startswith("ZZ"):
+            peakScore="NEW"
+        elif float(p[5])>=1500:
             peakScore="10"
         elif float(p[5])>=1100:
             peakScore="8"

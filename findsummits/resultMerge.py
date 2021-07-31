@@ -173,14 +173,14 @@ def main(filePath):
             pcpf[8],pcpf[9],pcpf[10],pcpf[11][0],pcpf[11][1],pcpf[12][0],pcpf[12][1], # サミット情報
             pcpf[13],pcpf[14]   # 登録/更新日時
         ])
-#    # peakColProminenceAllを summitsListにあるものとそうでないものに分ける
-#    pcpSummitsJA=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("JA")]
-#    pcpNewSummits=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("ZZ")]
-#    # 新たに見つかったサミットはピクセル座標で並べ替えてダミーのSummitCodeを付与
-#    pcpNewSummits.sort(key=itemgetter(0,1,2))
-#    for pcpnsi,pcpns in enumerate(pcpNewSummits):
-#        pcpns[12]=f"JAx/ZZ-{pcpnsi:0=3}"
-#    peakColProminenceAll=pcpSummitsJA+pcpNewSummits
+    # peakColProminenceAllを summitsListにあるものとそうでないものに分ける
+    pcpSummitsJA=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("JA")]
+    pcpNewSummits=[pcp for pcp in peakColProminenceAll if pcp[12].startswith("ZZ")]
+    # 新たに見つかったサミットはピクセル座標で並べ替えてダミーのSummitCodeを付与
+    pcpNewSummits.sort(key=itemgetter(0,1,2))
+    for pcpnsi,pcpns in enumerate(pcpNewSummits):
+        pcpns[12]=f"ZZ/ZZ-{pcpnsi:0=3}"
+    peakColProminenceAll=pcpSummitsJA+pcpNewSummits
 ##    for pcpa in peakColProminenceAll:
 ##        print(pcpa)
     peakColProminenceAll.sort(key=itemgetter(0,1,2)) # ピクセル座標で並べ替え
