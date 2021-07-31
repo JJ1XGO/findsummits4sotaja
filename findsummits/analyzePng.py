@@ -52,12 +52,6 @@ def main(filePath, debug=False, processtimelog=False):
     print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, difference:{float(Decimal(str(elevs.max()))-Decimal(str(elevs.min())))}m")
     print(f"{len(elvslist)} steps will be analyzed")
 #
-    # 最後から2番目(終了直前)の輪郭を抽出。最後残っている可能性のあるピーク候補数を取得する。
-    img=np.zeros(elevs.shape,dtype=np.uint8)
-    img[elevs==elvslist[-2]]=255
-    _, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    _,maxnumPcAttheend,_=hierarchy.shape
-#
     peakCandidates=[]
     peakColProminence=[]
     print("analyzing start")
