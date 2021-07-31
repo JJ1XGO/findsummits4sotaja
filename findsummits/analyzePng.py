@@ -39,28 +39,40 @@ def main(filePath, debug=False, processtimelog=False):
         start=datetime.datetime.now()
 #
     elevs=png2elevs(filePath)
-#    imageHeightWidth=[es for es in elevs.shape]
     print(f"image height:{elevs.shape[0]} width:{elevs.shape[1]}")
-# 標高の一覧(高い順)を取得
-    elvslist=list(np.unique(elevs))[::-1]
-    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, difference:{float(Decimal(str(elevs.max()))-Decimal(str(elevs.min())))}m")
-    print(f"{len(elvslist)} steps will be analyzed")
 # 時間測定
     if processtimelog:
         td=datetime.datetime.now()-start
         with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
-            csv.writer(f).writerow(["--","image read etc.",td.total_seconds()])
+            csv.writer(f).writerow(["--","image read",td.total_seconds()])
         start=datetime.datetime.now()
+#
+# 標高の一覧(高い順)を取得
+    elvslist=list(np.unique(elevs))[::-1]
+    print(f"elevation: highest:{elevs.max()}m - lowest:{elevs.min()}m, difference:{float(Decimal(str(elevs.max()))-Decimal(str(elevs.min())))}m")
+    print(f"{len(elvslist)} steps will be analyzed")
+#
+    # 最後から2番目(終了直前)の輪郭を抽出。最後残っている可能性のあるピーク候補数を取得する。
+    img=np.zeros(elevs.shape,dtype=np.uint8)
+    img[elevs==elvslist[-2]]=255
+    _, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _,maxnumPcAttheend,_=hierarchy.shape
 #
     peakCandidates=[]
     peakColProminence=[]
     print("analyzing start")
+# 時間測定
+    if processtimelog:
+        td=datetime.datetime.now()-start
+        with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            csv.writer(f).writerow(["--","initialize process.",td.total_seconds()])
+        start=datetime.datetime.now()
     for el in tqdm(elvslist):
         # 海面に達した時は処理しない
         if el==0:
             continue
-        # 標高がMINIMUM_PROMINENCE-5mより低くて、ピーク候補が1人だけになったら以下処理しない
-        if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5 and len(peakCandidates)<=1:
+        # 標高がMINIMUM_PROMINENCE-5mより低くて、ピーク候補が最後残っている可能性のあるピーク候補数以下になったら以下処理しない
+        if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5 and len(peakCandidates)<=maxnumPcAttheend:
             continue
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
