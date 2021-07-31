@@ -85,8 +85,8 @@ def main(filePath):
     for npcp in newPeakColProminencs:
         for dif in range(config["VAL"].getint("ERROR_TOLERANCE")):
             for sl in summitsList:
-                # ピクセル座標で突き合わせる。"match"が入っていれば19になる
-                if len(sl)!=19 and abs(npcp[1][0]-sl[17][0])<=dif and abs(npcp[1][1]-sl[17][1])<=dif:
+                # ピクセル座標で突き合わせる。summitsListは"match"が入っていれば19になる
+                if len(npcp)!=13 and len(sl)!=19 and abs(npcp[1][0]-sl[17][0])<=dif and abs(npcp[1][1]-sl[17][1])<=dif:
                     # 一致したら後ろに追加
                     npcp.append(sl[0])          # SummitCode
                     npcp.append(sl[3])          # SummitName
