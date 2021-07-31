@@ -65,8 +65,8 @@ def main(filePath, debug=False, processtimelog=False):
         # 海面に達した時は処理しない
         if el==0:
             continue
-        # 標高がMINIMUM_PROMINENCE-5mより低くて、ピーク候補が最後残っている可能性のあるピーク候補数以下になったら以下処理しない
-        if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5 and len(peakCandidates)<=maxnumPcAttheend:
+        # 標高がMINIMUM_PROMINENCE-5mより低くて、残っているピーク候補が1以下になったら以下処理しない
+        if el<config["VAL"].getint("MINIMUM_PROMINENCE")-5 and len(peakCandidates)<=1:
             continue
         # img=np.uint8(np.where(elevs>=el,255,0))
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
