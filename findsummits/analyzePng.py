@@ -145,9 +145,31 @@ def main(filePath, debug=False, processtimelog=False):
                             print(f"{el} borderline check pass:{cl}")
                     if debug:
                         print(f"{el} contpointList:{contpointList}")
-                    if len(contpointList)>0:    # 残った座標があれば
-                        contpointList.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
-                        peakCandidates.append((el,contpointList[0])) # 1番先頭をピーク候補に追加
+                    if len(peakCandidates)==0:  # 初回はそのまま通す
+                        contpointList2=contpointList
+                    else:
+                        # 些細なピークも拾ってしまうため、既にピーク候補に登録されている近くのピークだったら落選させる
+                        contpointList2=[]
+                        if len(contpointList)>0:
+                            for pc in peakCandidates:
+                                if debug:
+                                    print(f"{el} filter size check:{pc}")
+                                for cl in contpointList:
+                                    if abs(cl[0]-pc[1][0])<=config["VAL"].getint("FILTER_SIZE")\
+                                    and abs(cl[1]-pc[1][1])<=config["VAL"].getint("FILTER_SIZE"):
+                                        break
+                                else:
+                                    continue
+                                break
+                            else:
+                                # 1次審査を全て突破した人だけピーク候補にノミネート
+                                contpointList2.append(cl)
+                                if debug:
+                                    print(f"{el} filter size check pass:{cl}")
+                    #print(f"{el} contpointList2:{contpointList2}")
+                    if len(contpointList2)>0:    # 残った座標があれば
+                        contpointList2.sort(key=itemgetter(0))    # 座標で並べ替え。(x,y)なので西側有利の北側有利
+                        peakCandidates.append((el,contpointList2[0])) # 1番先頭をピーク候補に追加
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
