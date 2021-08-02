@@ -67,7 +67,8 @@ def main(filePath):
         # 1行目が項目違うので"JA"で始まるものに絞った
         if sl[0].startswith("JA"):
             # 失効していたら次
-            if sl[13] < datetime.date.today().strftime("%d/%m/%Y"):
+            #print(sl[0],datetime.datetime.strptime(sl[13],"%d/%m/%Y") < datetime.datetime.today(),sl[13],datetime.date.today().strftime("%d/%m/%Y"))
+            if datetime.datetime.strptime(sl[13],"%d/%m/%Y") < datetime.datetime.today():
                 continue
             # 欲しい項目を型変換しておく
             sl[4]=int(sl[4])    # 標高 intで良いのか不明
