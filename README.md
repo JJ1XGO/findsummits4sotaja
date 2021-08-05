@@ -30,7 +30,7 @@ JJ1XGO/Tsutomu Saito JJ1XGO@gmail.com
  
 # License
  
-findsummits4sotaja is under [GPLv2 license](https://en.wikipedia.org/wiki/MIT_License).
+findsummits4sotaja is under [GPLv2 license](https://www.gnu.org/licenses/old-licenses/gpl-2.0.ja.html).
  
 # Source
 
