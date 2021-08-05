@@ -159,26 +159,42 @@ def makeGeojson():
         lineStringSp=geojson.LineString([
             (float(p[18]),float(p[17])),(float(p[4]),float(p[3]))
         ])
-        featureLineSp=geojson.Feature(geometry=lineStringSp)
+        #featureLineSp=geojson.Feature(geometry=lineStringSp)
+        featureLineSp=geojson.Feature(
+            geometry=lineStringSp,id=p[12]+"SP",
+            properties={
+                "_color": config["LINE"][f"COLOR"+summitScore],
+                "_opacity": 1,
+                "_weight": 3
+            }
+        )
         lineStringPc=geojson.LineString([
             (float(p[4]),float(p[3])),(float(p[9]),float(p[8]))
         ])
-        featureLinePc=geojson.Feature(geometry=lineStringPc)
+        #featureLinePc=geojson.Feature(geometry=lineStringPc)
+        featureLinePc=geojson.Feature(
+            geometry=lineStringPc,id=p[12]+"PC",
+            properties={
+                "_color": config["LINE"][f"COLOR"+peakScore],
+                "_opacity": 1,
+                "_weight": 3
+            }
+        )
         featureCollection=geojson.FeatureCollection(
 #            [featureSummit,featurePeak,featureCol,featureMultiLine]
             [featureSummit,featurePeak,featureCol,lineStringSp,lineStringPc]
         )
-#        print(pointSummit)
-#        print(pointPeak)
-#        print(pointCol)
-#        print(lineStringSp)
-#        print(lineStringPc)
-#        print(featureSummit)
-#        print(featurePeak)
-#        print(featureCol)
-#        print(featureLineSp)
-#        print(featureLinePc)
-#        print(featureCollection)
+        #print(pointSummit)
+        #print(pointPeak)
+        #print(pointCol)
+        #print(lineStringSp)
+        #print(lineStringPc)
+        #print(featureSummit)
+        #print(featurePeak)
+        #print(featureCol)
+        #print(featureLineSp)
+        #print(featureLinePc)
+        #print(featureCollection)
         featureCollectionAll.append(featureCollection)
     # 終わったらFeatureCollectionして保存
     with open(config["DIR"]["RESULT"]+"/"+config["FILE"]["GEOJSON"], 'w') as gjfile:
