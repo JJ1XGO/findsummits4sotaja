@@ -33,8 +33,8 @@ def main(filePath, debug=False, processtimelog=False):
 #
 # 時間測定
     if processtimelog:
-        os.makedirs(config["LOG"]["DATA"] ,exist_ok=True)
-        with open(config["LOG"]["DATA"]+"/processtime.csv","w") as f:
+        os.makedirs(config["DIR"]["LOG"] ,exist_ok=True)
+        with open(config["DIR"]["LOG"]+"/processtime.csv","w") as f:
             csv.writer(f).writerow(["el","func","seconds"])
         start=datetime.datetime.now()
 #
@@ -43,7 +43,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
     if processtimelog:
         td=datetime.datetime.now()-start
-        with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+        with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
             csv.writer(f).writerow(["--","image read",td.total_seconds()])
         start=datetime.datetime.now()
 #
@@ -58,7 +58,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
     if processtimelog:
         td=datetime.datetime.now()-start
-        with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+        with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
             csv.writer(f).writerow(["--","initialize process.",td.total_seconds()])
         start=datetime.datetime.now()
     for el in tqdm(elvslist):
@@ -72,6 +72,13 @@ def main(filePath, debug=False, processtimelog=False):
         # いくつか試してみたが今の所これが1番速い。2行になったけど上記の半分以下
         img=np.zeros(elevs.shape,dtype=np.uint8)
         img[elevs>=el]=255
+# 時間測定
+        if processtimelog:
+            td=datetime.datetime.now()-start
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                csv.writer(f).writerow([el,"prepair image",td.total_seconds()])
+            start=datetime.datetime.now()
+#
         # 輪郭を抽出する。最初はベタ塗りの画像から親の輪郭だけ抽出したいので
         # 最も外側の輪郭のみ(cv2.RETR_EXTERNAL)のメモリ節約モード(cv2.CHAIN_APPROX_SIMPLE)
         # 子供がいたらそれは凹地なので気にしない
@@ -79,7 +86,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"findContours(1)",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -97,7 +104,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"findContours(2)",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -122,7 +129,8 @@ def main(filePath, debug=False, processtimelog=False):
                 continue
             # 親もいなければピーク候補にいるか確認
             if hrrchy[3]==-1:
-                contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+                #contpointSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+                contpointSet=set(tuple(contpoint[0].tolist()) for contpoint in contours[hi])
                 for pc in peakCandidates:
                     if pc[1] in contpointSet:  # ピーク候補の座標が輪郭線の座標の中にあればこのループを抜けて次の人
                         break
@@ -173,7 +181,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"new peakCandidate check",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -245,7 +253,8 @@ def main(filePath, debug=False, processtimelog=False):
             fNumber=str(int(parentCnt*100000+childCnt*100+gChildCnt))
             # ピーク候補の情報を付加する
             # 輪郭線を構成する座標の一覧を作成
-            cpSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+            #cpSet={tuple(contpoint[0].tolist()) for contpoint in contours[hi]}
+            cpSet=set(tuple(contpoint[0].tolist()) for contpoint in contours[hi])
             for pci,pc in enumerate(peakCandidates):
                 if pc[1] in cpSet:  # ピーク候補の座標が輪郭線の座標の中にあれば
                     if debug:
@@ -276,7 +285,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"make familyTree",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -346,9 +355,10 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"update familyTree",td.total_seconds()])
             start=datetime.datetime.now()
+            start2=datetime.datetime.now()
 #
         # 家系図チェック。1つの親にピークは1つ。2つ以上あればコルに到達
         for ft in familyTree:
@@ -366,6 +376,13 @@ def main(filePath, debug=False, processtimelog=False):
             if debug:
                 for oc in overChild:
                     print(f"{el} overChild:{oc}")
+# 時間測定
+            if processtimelog:
+                td=datetime.datetime.now()-start2
+                with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                    csv.writer(f).writerow([el,"  make overChild",td.total_seconds()])
+                start2=datetime.datetime.now()
+#
             colList=[]
             for oci,oc in enumerate(overChild):    # 自分と子だけの家系図を舐める
                 if oci==0:  # 親の時
@@ -393,23 +410,36 @@ def main(filePath, debug=False, processtimelog=False):
                                 colList.append(tuple(ct[0].tolist()))
                         if len(colList)==0:
                             # 親の座標に見つからなかった時、隣接する子との接点を探す
+                            compCtSet=set(tuple(contpoint[0].tolist()) for contpoint in contours[overChild[oci+findColFb][0]])
                             for ct in contours[oc[0]]:  # 自分の輪郭線の座標と
-                                for compCt in contours[overChild[oci+findColFb][0]]:    # 相手の輪郭線の座標を比較して
-                                    if np.all(ct==compCt):  # 一致していればコル座標を発見
-                                        if debug:
-                                            print(f"found col! ({ct[0].tolist()})")
-                                        colList.append(tuple(ct[0].tolist()))
-                                        break
-                                else:   # 見つからなかったら
-                                    continue    # 次の座標へ
-                                break
-                            else:   # 子同士の接点が見つからなかった時
-                                # どこだかわからないので現在の標高と同じ標高の座標を全部抜き出す
-                                for oc2 in overChild:
-                                    for ct in contours[oc2[0]]:
-                                        if elevs[ct[0][1],ct[0][0]] == el:
-                                            colList.append(tuple(ct[0].tolist()))
-                            break   # ループを抜ける
+                                #for compCt in contours[overChild[oci+findColFb][0]]:    # 相手の輪郭線の座標を比較して
+                                #    #if np.all(ct==compCt):  # 一致していればコル座標を発見
+                                #    if (ct==compCt).all():  # 一致していればコル座標を発見
+                                #        if debug:
+                                #            print(f"found col! ({ct[0].tolist()})")
+                                #        colList.append(tuple(ct[0].tolist()))
+                                if tuple(ct[0].tolist()) in compCtSet:  # 一致していればコル座標を発見
+                                    if debug:
+                                        print(f"found col! ({ct[0].tolist()})")
+                                    colList.append(tuple(ct[0].tolist()))
+                            #            break
+                            #    else:   # 見つからなかったら
+                            #        continue    # 次の座標へ
+                            #    break
+                            #else:   # 子同士の接点が見つからなかった時
+                            #    # どこだかわからないので現在の標高と同じ標高の座標を全部抜き出す
+                            #    for oc2 in overChild:
+                            #        for ct in contours[oc2[0]]:
+                            #            if elevs[ct[0][1],ct[0][0]] == el:
+                            #                colList.append(tuple(ct[0].tolist()))
+                            #break   # ループを抜ける
+                        break   # ループを抜ける
+# 時間測定
+            if processtimelog:
+                td=datetime.datetime.now()-start2
+                with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                    csv.writer(f).writerow([el,"  check overChild",td.total_seconds()])
+                start2=datetime.datetime.now()
 #
             if len(colList)==0:  # コル座標が見つからなかった時
                 # rejPeakCandidatesに誰かいれば、標高の高い孫に弾かれた孫なので、MINIMUM_PROMINENCE以上あれば最後に救済する
@@ -435,6 +465,12 @@ def main(filePath, debug=False, processtimelog=False):
                         else:
                             continue
                         break
+# 時間測定
+            if processtimelog:
+                td=datetime.datetime.now()-start2
+                with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                    csv.writer(f).writerow([el,"  check rejPeakCandidates",td.total_seconds()])
+                start2=datetime.datetime.now()
 #
             if len(colList)==0:  # コル座標が見つからなかった時
                 # 子が出来る前に飲み込まれた些細なピークが悪さしたと思われる。
@@ -454,6 +490,13 @@ def main(filePath, debug=False, processtimelog=False):
                         holddist=dist
                 newColList.append(colList[holdcli])
                 colList=newColList
+# 時間測定
+            if processtimelog:
+                td=datetime.datetime.now()-start2
+                with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                    csv.writer(f).writerow([el,"  check colList",td.total_seconds()])
+                start2=datetime.datetime.now()
+#
             if len(colList)!=1:
                 # ここに来る事はない筈だが。あった場合は処理を中止させて内容要確認
                 #for i in range(len(contours)):
@@ -512,9 +555,15 @@ def main(filePath, debug=False, processtimelog=False):
                 for pci,pc in enumerate(peakCandidates):
                     print(f"{el} new peakCandidates:{pci} {pc}")
 # 時間測定
+            if processtimelog:
+                td=datetime.datetime.now()-start2
+                with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
+                    csv.writer(f).writerow([el,"  update peakCandidates",td.total_seconds()])
+                start2=datetime.datetime.now()
+# 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"check familyTree",td.total_seconds()])
             start=datetime.datetime.now()
 #
@@ -527,7 +576,7 @@ def main(filePath, debug=False, processtimelog=False):
 # 時間測定
         if processtimelog:
             td=datetime.datetime.now()-start
-            with open(config["LOG"]["DATA"]+"/processtime.csv","a") as f:
+            with open(config["DIR"]["LOG"]+"/processtime.csv","a") as f:
                 csv.writer(f).writerow([el,"update peakCandidates",td.total_seconds()])
             start=datetime.datetime.now()
 #

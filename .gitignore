@@ -5,3 +5,4 @@ pcps/
 results/
 tiles/
 findsummits/__pycache__/
+tests/__pycache__/
