@@ -16,8 +16,8 @@ def main(filePath):
     # peakColProminenceを読み込む
     with open(filePath) as f:
         peakColProminence=[s.strip() for s in f.readlines()]
-    for pcpi,pcp in enumerate(peakColProminence):
-        print(pcpi,pcp)
+    #for pcpi,pcp in enumerate(peakColProminence):
+    #    print(pcpi,pcp)
     # ファイル名より座標を求める
     baseName=os.path.splitext(os.path.basename(filePath))[0]
     mapAdress=baseName.split("_")
